@@ -1,10 +1,11 @@
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.4.0';
 // 梦想家 · 家的数据与生成
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.3.1';
-import { generate } from './api.js?mxj=0.3.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.3.1';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.3.1';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.3.1';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.3.1';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.4.0';
+import { generate } from './api.js?mxj=0.4.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.4.0';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.4.0';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.4.0';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.4.0';
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];
@@ -20,19 +21,21 @@ const HOUSE_SYSTEM = `你是一位很会讲故事的室内设计师。你要根�
 房子要像这个角色会住的地方：从他的职业、习惯、喜好、世界观里找细节，而不是千篇一律的样板间。
 只输出一个 JSON 对象，不要输出其他文字。`;
 
-function houseUserPrompt(info, size, extra, emptyWall) {
+function houseUserPrompt(info, size, extra, emptyWall, theme) {
     const sizeDef = HOUSE_SIZES.find(s => s.id === size) || HOUSE_SIZES[1];
     return `${contextBlock(info, { withRecent: false })}
 
 # 设计要求
+- 固定美术风格：${themeName(theme)}。家具配色与角色表现参考该风格，外貌和性格仍以人设为准。
 - 房子大小：${sizeDef.name}（${sizeDef.rooms}）
 ${extra ? `- 用户补充：${extra}\n` : ''}${emptyWall ? '- 每个房间少放一点东西，留出空位，等两人以后一起布置。\n' : ''}- 家具只能从这些类型里选（type 用英文 id）：${CATALOG_PROMPT}
 - 每个房间放 3 到 7 件家具；x 是家具在房间正面图里从左到右的位置，0–100。
 - 颜色用 #RRGGBB。
-- look 是他在家里出现时的 Q 版像素小人外形，按角色描述里的外貌来定（发型选最接近的一种）。
+- look 是他在家里出现时的 Q 版小人外形，按角色描述里的外貌来定（发型选最接近的一种）。
 
 # 输出格式
 {
+  "appearance": "从角色设定提取的外貌摘要：发型、发色、瞳色、肤色、服装、配饰；未提及的特征标注未设定",
   ${LOOK_PROMPT},
   "name": "这个家的名字（短）",
   "story": "两三句话，用第二人称讲这个家给你的感觉和来历",
@@ -96,6 +99,7 @@ export function normalizeHouse(parsed, raw, size) {
         name: asText(p.name, 20) || '我们的家',
         story: asText(p.story, 400) || (parsed ? '' : clip(String(raw || ''), 400)),
         size,
+        appearance: asText(p.appearance, 1200),
         palette,
         rooms,
         furniture,
@@ -103,11 +107,12 @@ export function normalizeHouse(parsed, raw, size) {
     };
 }
 
-export async function designHouse(char, { size, extra, emptyWall, signal }) {
+export async function designHouse(char, { size, extra, emptyWall, theme = 'pixel', signal }) {
+    theme = getHome(char)?.house ? homeTheme(getHome(char)) : themeId(theme);
     const info = await gatherContext(char);
-    const raw = await generate({ system: HOUSE_SYSTEM, user: houseUserPrompt(info, size, extra, emptyWall), signal });
+    const raw = await generate({ system: HOUSE_SYSTEM, user: houseUserPrompt(info, size, extra, emptyWall, theme), signal });
     const parsed = parseJsonLoose(raw);
-    return normalizeHouse(parsed, raw, size);
+    return { ...normalizeHouse(parsed, raw, size), theme };
 }
 
 export function createHome(char, house) {
@@ -119,6 +124,11 @@ export function createHome(char, house) {
         presence: { atHome: false, activity: '', mood: '', spot: '', since: 0 },
         lastVisitAt: 0,
     };
+    home.theme = home.house ? homeTheme(home) : themeId(house.theme);
+    home.themeLocked = true;
+    home.appearance = house.appearance || home.appearance || '';
+    home.appearanceConfirmed = true;
+    house.theme = home.theme;
     home.charName = char?.name || '';
     if (!home.look && house.look) home.look = normalizeLook(house.look, char?.name);
     home.house = house;
@@ -131,7 +141,7 @@ export function createHome(char, house) {
 function houseSummary(home) {
     const h = home.house;
     if (!h) return '';
-    const lines = [`家：${h.name}。${h.story || ''}`];
+    const lines = [`家：${h.name}。${h.story || ''}`, `固定画风：${themeName(homeTheme(home))}。`, `确认的角色外貌：${home.appearance || '以角色卡为准'}。`];
     for (const r of h.rooms) {
         const items = h.furniture.filter(f => f.room === r.id).map(f => `${f.name}[${f.id}]${f.by === 'user' ? '(用户放的)' : ''}`);
         lines.push(`- ${r.name}：${items.join('、') || '空着'}`);
@@ -482,7 +492,8 @@ const DESCRIBE_SYSTEM = `你是家具设计师。把用户描述的一件家具�
 
 export async function furnitureFromText(char, text, { signal } = {}) {
     const desc = String(text || '').trim();
-    const user = `用户想要：${desc}
+    const user = `固定美术风格：${themeName(homeTheme(getHome(char)))}。家具配色应符合此风格。
+用户想要：${desc}
 
 类型只能从这些里选（type 用英文 id）：${CATALOG_PROMPT}
 输出格式：{ "type": "…", "name": "具体名字（12 字以内）", "color": "#RRGGBB" }`;
@@ -512,14 +523,15 @@ export function setLook(char, patch) {
     return home.look;
 }
 
-const LOOK_SYSTEM = `你是像素画师。根据角色设定里的外貌描写，定下这个角色的 Q 版像素小人外形。只输出一个 JSON 对象。`;
+const LOOK_SYSTEM = `你是角色设计师。根据角色设定里的外貌描写与用户确认的外貌，定下这个角色的 Q 版小人外形。只输出一个 JSON 对象。`;
 
 export async function generateLook(char, { signal } = {}) {
     const info = await gatherContext(char);
     const user = `${contextBlock(info, { withRecent: false })}
 
 # 要求
-按「${info.char.name}」的外貌定下像素小人的样子；描写里没提到的部分，按他的气质挑合适的颜色。颜色用 #RRGGBB。
+固定画风：${themeName(homeTheme(getHome(char)))}。用户确认的外貌：${getHome(char)?.appearance || "以角色卡为准"}。
+按「${info.char.name}」的外貌定下小人的样子；描写里没提到的部分，按他的气质挑合适的颜色。颜色用 #RRGGBB。
 
 # 输出格式
 { ${LOOK_PROMPT} }`;

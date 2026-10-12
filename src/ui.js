@@ -1,18 +1,19 @@
+import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.4.0';
 // 梦想家 · 界面
-import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.3.1';
-import { getSettings, updateSettings, currentCharacter, getHome, setHome, removeHome } from './settings.js?mxj=0.3.1';
-import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.3.1';
-import { characterView, avatarUrl } from './character.js?mxj=0.3.1';
-import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.3.1';
+import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.4.0';
+import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.4.0';
+import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.4.0';
+import { characterView, avatarUrl } from './character.js?mxj=0.4.0';
+import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.4.0';
 import {
     HOUSE_SIZES, NOTE_KINDS, NOTE_PLACES,
     designHouse, createHome, comeHome, respond, postNote, replyToNote,
     markCharNotesRead, unreadFromChar, shouldAutoVisit, isAway,
     getLook, setLook, generateLook,
     WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary, shouldAutoDiary,
-} from './home.js?mxj=0.3.1';
-import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.3.1';
-import { createDecorator } from './decorate.js?mxj=0.3.1';
+} from './home.js?mxj=0.4.0';
+import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.4.0';
+import { createDecorator } from './decorate.js?mxj=0.4.0';
 
 const ROOT_ID = 'mxj-root';
 
@@ -37,7 +38,7 @@ const state = {
     toast: '',
     abort: null,
     selectedFurniture: '',
-    draft: { size: 'flat', extra: '', emptyWall: true, proposal: null },
+    draft: { theme: 'pixel', size: 'flat', extra: '', emptyWall: true, proposal: null },
     composer: { kind: '日常', place: '门边', text: '', deferred: true },
     models: [],
     changelog: null,
@@ -116,7 +117,7 @@ export function open() {
     state.error = '';
     state.selectedFurniture = '';
     state.view = !char ? 'nochar' : (home?.house ? 'home' : 'build');
-    state.draft.proposal = null;
+    state.draft = { theme: homeTheme(home), size: 'flat', extra: '', emptyWall: true, proposal: null };
     root.hidden = false;
     if (typeof root.showModal === 'function') {
         if (!root.open) root.showModal();
@@ -157,6 +158,7 @@ function render() {
     if (!root) return;
     const char = currentCharacter();
     const home = char ? getHome(char) : null;
+    root.dataset.theme = home?.house ? homeTheme(home) : state.draft.theme;
     const back = root.querySelector('.mxj-back');
     const isTop = state.view === 'home' || state.view === 'nochar' || (state.view === 'build' && !home?.house);
     back.innerHTML = isTop ? ICON.close : ICON.back;
@@ -191,7 +193,7 @@ function titles(char, home) {
             const n = getDiary(home).entries.length;
             return ['交换日记', n ? `第 ${Math.floor((n - 1) / 2) + 1} 页` : '新本子'];
         }
-        case 'look': return [`${name}的样子`, '像素小人'];
+        case 'look': return [`${name}的样子`, home ? themeName(homeTheme(home)) : '人物外貌'];
         case 'nochar': return ['梦想家', ''];
         default: return [home?.house ? `${name}的家` : '梦想家', home?.house ? `${home.house.name} · 住了 ${daysSince(home.createdAt)} 天` : ''];
     }
@@ -243,7 +245,7 @@ function viewHome(char, home) {
     const look = getLook(home, char);
     const pose = poseFor({ spotType: spotItem?.type || '', activity: presence0.activity, night });
     const figure = showFigure
-        ? (anchors) => spriteInRoom(look, pose, spotItem ? anchors[spotItem.id] : null, SCENE_H, { label: `${characterView(char).name}（点一下看他的样子）` })
+        ? (anchors) => spriteInRoom(look, pose, spotItem ? anchors[spotItem.id] : null, SCENE_H, { theme: homeTheme(home), mood: home.presence?.mood, label: `${characterView(char).name}（点一下看他的样子）` })
         : null;
     const { svg } = renderRoom(room, furniture, house.palette, { night, selectedId: state.selectedFurniture, figure });
     const away = isAway(home) && !state.busy;
@@ -344,6 +346,7 @@ function viewBuild(char, home) {
     const d = state.draft;
     const s = getSettings();
     const name = characterView(char).name;
+    const themes = home?.house ? `<p class="mxj-muted">固定风格：${esc(themeName(homeTheme(home)))}。重新设计房屋也会保留此风格。</p>` : `<h3>小屋风格</h3><p class="mxj-muted">入住后固定风格，人物与家具沿用同一套表现。三个主题目前为基础框架。</p><div class="mxj-chips is-wrap">${THEMES.map(t => `<button type="button" class="mxj-chip${d.theme === t.id ? ' is-on' : ''}" data-act="theme" data-id="${t.id}" aria-pressed="${d.theme === t.id}">${esc(t.name)}</button>`).join('')}</div><p class="mxj-muted">${esc(THEMES.find(t => t.id === d.theme)?.note || '')}</p>`;
     const sizes = HOUSE_SIZES.map(z => `
       <button type="button" class="mxj-size${d.size === z.id ? ' is-on' : ''}" data-act="size" data-id="${z.id}" aria-pressed="${d.size === z.id}">
         <b>${esc(z.name)}</b><span>${esc(z.sub)}</span>
@@ -351,6 +354,7 @@ function viewBuild(char, home) {
     const showing = d.proposal || (home?.house && !d.proposal ? home.house : null);
     const isCurrent = showing && !d.proposal;
     return `
+      <section class="mxj-card">${themes}</section>
       ${showing ? proposalCard(showing, isCurrent) : ''}
       <section class="mxj-card">
         <h3>${showing ? '再设计一版' : '① 从人设里读'}</h3>
@@ -389,10 +393,10 @@ function proposalCard(house, isCurrent) {
       ${renderFloorPlan(house.rooms, house.palette)}
       <div class="mxj-swatches">${swatches}</div>
       <ul class="mxj-room-list">${rooms}</ul>
-      ${isCurrent ? '<button type="button" class="mxj-btn" data-act="go" data-view="look">他的样子（像素小人）</button>' : ''}
-      ${isCurrent ? '' : `<div class="mxj-row">
+      ${isCurrent ? '<button type="button" class="mxj-btn" data-act="go" data-view="look">他的样子与外貌</button>' : ''}
+      ${isCurrent ? '' : `<h3>入住前确认外貌 · ${esc(themeName(house.theme))}</h3><p class="mxj-muted">核对 AI 提取的描述并手动修改。当前小人仅能表现基础特征，详细立绘将在后续完善。</p><div class="mxj-look-preview">${spriteSvg(getLook({look: house.look}, currentCharacter()), {}, { theme: house.theme })}</div><label class="mxj-field"><span>角色外貌描述</span><textarea class="mxj-input" data-field="draftAppearance" rows="4">${esc(house.appearance || '')}</textarea></label>${['hair','eyes','skin','outfit'].map(k => `<label class="mxj-field"><span>${({hair:'发色',eyes:'瞳色',skin:'肤色',outfit:'衣服颜色'})[k]}</span><input type="color" data-field="draftColor" data-key="${k}" value="${getLook({look:house.look}, currentCharacter())[k]}"></label>`).join('')}<label class="mxj-field"><span>发型</span><select class="mxj-input" data-field="draftHair">${HAIR_STYLES.map(x=>`<option value="${x.id}" ${getLook({look:house.look},currentCharacter()).hairStyle === x.id ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label><label class="mxj-field"><span>配饰</span><select class="mxj-input" data-field="draftAccessory">${ACCESSORIES.map(x=>`<option value="${x.id}" ${getLook({look:house.look},currentCharacter()).accessory === x.id ? 'selected' : ''}>${esc(x.label)}</option>`).join('')}</select></label><div class="mxj-row">
         <button type="button" class="mxj-btn mxj-grow" data-act="design">${ICON.refresh}换一版</button>
-        <button type="button" class="mxj-btn is-primary mxj-grow" data-act="accept">就住这里</button>
+        <button type="button" class="mxj-btn is-primary mxj-grow" data-act="accept">确认外貌，就住这里</button>
       </div>`}
     </section>`;
 }
@@ -467,12 +471,12 @@ function viewLook(char, home) {
         { label: '拿着杯子', pose: { prop: 'mug' } },
         { label: '睡着了', pose: { sit: true, closed: true } },
     ];
-    const preview = poses.map(p => `<figure class="mxj-look-pose">${spriteSvg(look, p.pose, { attrs: 'class="mxj-pixel" aria-hidden="true"' })}<figcaption>${p.label}</figcaption></figure>`).join('');
+    const preview = poses.map(p => `<figure class="mxj-look-pose">${spriteSvg(look, p.pose, { theme: homeTheme(home), attrs: 'class="mxj-pixel" aria-hidden="true"' })}<figcaption>${p.label}</figcaption></figure>`).join('');
     const chips = (list, cur, act) => list.map(x => `<button type="button" class="mxj-chip${x.id === cur ? ' is-on' : ''}" data-act="${act}" data-id="${x.id}" aria-pressed="${x.id === cur}">${esc(x.label)}</button>`).join('');
     const colors = (key, label) => `<div class="mxj-field"><span>${label}</span><div class="mxj-colors">${LOOK_COLORS[key].map(c => `<button type="button" class="mxj-color${c.toLowerCase() === String(look[key]).toLowerCase() ? ' is-on' : ''}" style="background:${c}" data-act="look-color" data-key="${key}" data-color="${c}" aria-label="${label}换成这个颜色" aria-pressed="${c.toLowerCase() === String(look[key]).toLowerCase()}"></button>`).join('')}</div></div>`;
     return `
       <section class="mxj-card">
-        <div class="mxj-look-preview">${preview}</div>
+        <h3>${esc(themeName(homeTheme(home)))} · 风格已固定</h3><label class="mxj-field"><span>确认的外貌（可手动修改，修改后可重新生成基础小人）</span><textarea class="mxj-input" data-field="appearance" rows="4">${esc(home.appearance || "")}</textarea></label><p class="mxj-muted">当前表情：${esc(moodFace(home.presence?.mood, homeTheme(home)))}，根据回家时的心情显示。</p><div class="mxj-look-preview">${preview}</div>
         <p class="mxj-muted">他回家时会以这个样子出现在房间里，姿势跟着他在做的事变。</p>
         <button type="button" class="mxj-btn" data-act="look-gen" ${state.busy ? 'disabled' : ''}>按人设重新生成</button>
       </section>
@@ -834,17 +838,26 @@ function onClick(event) {
         case 'visit': void doVisit(); break;
         case 'option': void doRespond(el.dataset.text); break;
         case 'furniture-act': void doRespond(el.dataset.text, state.selectedFurniture); break;
+        case 'theme':
+            if (!getHome(char)?.house && !state.busy) {
+                state.draft.theme = THEMES.some(t => t.id === el.dataset.id) ? el.dataset.id : 'pixel';
+                state.draft.proposal = null; render();
+            }
+            break;
         case 'size': state.draft.size = el.dataset.id; state.keepScroll = true; render(); break;
         case 'design':
             void run('正在按人设设计房子…', async signal => {
-                state.draft.proposal = await designHouse(char, { ...state.draft, signal });
+                const proposal = await designHouse(char, { ...state.draft, signal });
+                if (!signal.aborted && characterKey(currentCharacter()) === characterKey(char)) state.draft.proposal = proposal;
             }).then(() => {
-                if (state.draft.proposal) root.querySelector('.mxj-main').scrollTop = 0;
+                if (state.draft.proposal && root?.open) root.querySelector('.mxj-main').scrollTop = 0;
             });
             break;
         case 'accept': {
-            if (!state.draft.proposal) break;
+            if (!state.draft.proposal || state.busy) break;
             const fresh = !getHome(char)?.house;
+            const existing = getHome(char);
+            if (existing?.house) existing.look = getLook({look: state.draft.proposal.look}, char);
             createHome(char, state.draft.proposal);
             state.draft.proposal = null;
             go('home');
@@ -918,6 +931,17 @@ function onChange(event) {
     if (!field) return;
     const value = el.type === 'checkbox' ? el.checked : el.value;
     switch (field) {
+        case 'draftAppearance': if (state.draft.proposal) state.draft.proposal.appearance = value; return;
+        case 'draftColor':
+        case 'draftHair':
+        case 'draftAccessory':
+            if (state.draft.proposal) {
+                const key = field === 'draftHair' ? 'hairStyle' : field === 'draftAccessory' ? 'accessory' : el.dataset.key;
+                state.draft.proposal.look = { ...getLook({look:state.draft.proposal.look}, currentCharacter()), [key]: value };
+                state.keepScroll = true; render();
+            }
+            return;
+        case 'appearance': { const c = currentCharacter(); const h = getHome(c); if (h) { h.appearance = String(value).slice(0,1200); setHome(c,h); } return; }
         case 'emptyWall': state.draft.emptyWall = value; return;
         case 'deferred': state.composer.deferred = value; return;
         case 'extra': state.draft.extra = value; return;
@@ -953,6 +977,7 @@ function onChange(event) {
 function onInput(event) {
     const el = event.target;
     const field = el?.dataset?.field;
+    if (field === 'draftAppearance' && state.draft.proposal) state.draft.proposal.appearance = el.value.slice(0,1200);
     if (field === 'noteText') state.composer.text = el.value;
     if (field === 'extra') state.draft.extra = el.value;
     if (field === 'diaryText') state.diaryDraft.text = el.value;
@@ -980,7 +1005,7 @@ document.addEventListener('submit', event => {
 export function onChatChanged() {
     if (!root?.open) return;
     state.abort?.abort();
-    state.draft.proposal = null;
+    state.draft = { theme: 'pixel', size: 'flat', extra: '', emptyWall: true, proposal: null };
     state.newLayout = '';
     const char = currentCharacter();
     const home = char ? getHome(char) : null;

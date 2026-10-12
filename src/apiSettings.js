@@ -1,7 +1,7 @@
 // 梦想家 · 扩展设置抽屉里的 API 设置（和面板里的设置读写同一份数据）
-import { esc } from './util.js?mxj=0.3.1';
-import { getSettings, updateSettings } from './settings.js?mxj=0.3.1';
-import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.3.1';
+import { esc } from './util.js?mxj=0.4.0';
+import { getSettings, updateSettings } from './settings.js?mxj=0.4.0';
+import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.4.0';
 
 export function mountApiSettings(container) {
     if (!container) return;

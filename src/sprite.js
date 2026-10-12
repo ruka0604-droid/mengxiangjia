@@ -1,7 +1,8 @@
+import { moodFace } from './theme.js?mxj=0.4.0';
 // 梦想家 · Q 版像素小人
 // 16×24 的像素格，插件自己画：发型、发色、肤色、眼睛、衣服、配饰都来自「形象」数据，
 // 姿势（站 / 坐）、手里的东西（书 / 杯子）、闭眼按他正在做的事来定。
-import { hexOr, shade, esc } from './util.js?mxj=0.3.1';
+import { hexOr, shade, esc } from './util.js?mxj=0.4.0';
 
 export const GRID_W = 16;
 export const GRID_H = 24;
@@ -121,7 +122,8 @@ function range(a, b) {
  * @param {{sit?:boolean, prop?:string, closed?:boolean}} pose
  * @returns {string} 一个 <svg> 片段（viewBox 带 1 格描边余量）
  */
-export function spriteSvg(look, pose = {}, { width, height, x, y, attrs = '' } = {}) {
+export function spriteSvg(look, pose = {}, { width, height, x, y, attrs = '', theme = 'pixel' } = {}) {
+    if (theme !== 'pixel') return softSprite(look, pose, {width, height, x, y, attrs, theme});
     const L = look;
     const hairShade = shade(L.hair, -0.25);
     const skinShade = shade(L.skin, -0.12);
@@ -311,7 +313,7 @@ export function spriteSvg(look, pose = {}, { width, height, x, y, attrs = '' } =
 }
 
 // 放进房间：返回房间 SVG 里的一个可点的小人
-export function spriteInRoom(look, pose, anchor, sceneH, { label = '他' } = {}) {
+export function spriteInRoom(look, pose, anchor, sceneH, { label = '他', theme = 'pixel', mood = '' } = {}) {
     const unit = 3; // 每个像素格在房间里的大小
     const w = (GRID_W + 2) * unit;
     const h = (GRID_H + 2) * unit;
@@ -324,5 +326,23 @@ export function spriteInRoom(look, pose, anchor, sceneH, { label = '他' } = {})
     const z = pose.sleepy
         ? `<text x="${(cx + w / 2 - 2).toFixed(1)}" y="${(y + 10).toFixed(1)}" font-size="11" font-weight="700" fill="#FBFAF6" stroke="${OUTLINE}" stroke-width="0.6" class="mxj-zzz">z</text>`
         : '';
-    return `<g class="mxj-sprite" data-act="avatar" role="button" tabindex="0" aria-label="${esc(label)}">${spriteSvg(look, pose, { x: x.toFixed(1), y: y.toFixed(1), width: w.toFixed(1), height: h.toFixed(1) })}${z}</g>`;
+    return `<g class="mxj-sprite" data-act="avatar" role="button" tabindex="0" aria-label="${esc(label)}">${spriteSvg(look, pose, { x: x.toFixed(1), y: y.toFixed(1), width: w.toFixed(1), height: h.toFixed(1), theme })}${z}<text x="${cx}" y="${y - 7}" text-anchor="middle" font-size="${theme === 'scrapbook' ? 10 : 15}" fill="#392B35" stroke="#FFF9EF" stroke-width="0.5" paint-order="stroke">${esc(moodFace(mood,theme))}</text></g>`;
+}
+
+// 基础矢量 Q 版，共享外貌数据，不冒充生成立绘。
+function softSprite(L, pose, {width, height, x, y, attrs, theme}) {
+    const border = theme === 'storybook' ? '#79566A' : '#76543B';
+    const box = Object.entries({width,height,x,y}).filter(([,v]) => v !== undefined).map(([k,v]) => `${k}="${v}"`).join(' ');
+    const lower = pose.sit ? 59 : 65;
+    const long = ['long','bob'].includes(L.hairStyle) ? `<rect x="8" y="11" width="32" height="${L.hairStyle === 'long' ? 35 : 22}" rx="12" fill="${L.hair}"/>` : '';
+    const side = L.hairStyle === 'ponytail' ? `<path d="M36 12 Q51 16 39 42 Q40 24 33 20" fill="${L.hair}"/>` : '';
+    const fringe = L.hairStyle === 'swept' ? 'M9 21 Q9 0 29 7 Q41 8 40 24 Q30 24 30 12 Q21 25 9 21Z' : L.hairStyle === 'messy' ? 'M8 21 L6 12 L15 13 L17 4 L25 9 L33 5 L40 12 L40 22 L29 15 L24 20 L18 15Z' : 'M8 21 Q7 4 24 5 Q41 4 40 22 L31 16 L24 19 L15 15Z';
+    const accessory = {
+        glasses: '<rect x="13" y="22" width="9" height="7" rx="2" fill="none"/><rect x="26" y="22" width="9" height="7" rx="2" fill="none"/><path d="M22 24h4"/>',
+        hat: `<path d="M6 14H42 M12 13V5H36V13" fill="${L.accent}"/>`,
+        scarf: `<path d="M15 36H33V42H26V52H21V42H15Z" fill="${L.accent}"/>`,
+        earring: `<circle cx="39" cy="28" r="2" fill="${L.accent}"/>`,
+    }[L.accessory] || '';
+    const prop = pose.prop === 'book' ? `<path d="M13 44L24 47L35 44V57L24 60L13 57Z" fill="${L.accent}"/>` : pose.prop === 'mug' ? `<rect x="30" y="43" width="9" height="11" rx="2" fill="${L.accent}"/><path d="M39 45Q47 49 39 52" fill="none"/>` : '';
+    return `<svg ${box} ${attrs} viewBox="0 0 48 72" aria-hidden="true"><g stroke="${border}" stroke-width="${theme === 'scrapbook' ? 1.5 : 1}" stroke-linejoin="round">${side}${long}<path d="M15 54V${lower}H22V54 M26 54V${lower}H33V54" fill="${L.pants}"/><path d="M14 ${lower}H23V${lower+4}H12Z M26 ${lower}H35L37 ${lower+4}H26Z" fill="${L.shoes}"/><path d="M15 36Q9 39 9 52L15 53V56H33V53L39 52Q39 39 33 36Z" fill="${L.outfit}"/><path d="M20 34V39Q24 44 28 39V34" fill="${L.skin}"/><ellipse cx="24" cy="23" rx="16" ry="15" fill="${L.skin}"/><path d="${fringe}" fill="${L.hair}"/>${pose.closed ? '<path d="M16 25h5 M27 25h5"/>' : `<circle cx="18" cy="25" r="2" fill="${L.eyes}"/><circle cx="30" cy="25" r="2" fill="${L.eyes}"/>`}<path d="M21 31Q24 34 27 31" fill="none"/>${theme === 'storybook' ? '<ellipse cx="13" cy="29" rx="3" ry="1.5" fill="#EFA9B4" stroke="none"/><ellipse cx="35" cy="29" rx="3" ry="1.5" fill="#EFA9B4" stroke="none"/>' : ''}${accessory}${prop}</g></svg>`;
 }
