@@ -10,7 +10,7 @@ SillyTavern 第三方扩展：按角色人设盖一个用户和角色共同的�
 - **「有入口就能点进去」**：界面上画成按钮、标签、卡片等看起来能点的东西，必须真的能打开对应内容；还没做的功能不放入口。
 - **入口是魔法棒菜单里的「梦想家」**，另有可选的可拖动小屋浮窗（设置里开关，默认关）。0.5.1 起扩展设置里不再放梦想家的面板，所有设置都在梦想家内部。
 - 酒馆的 `menu_button` 在窄屏的竖排容器里会变成竖排文字，放到梦想家面板外的按钮要加 `writing-mode: horizontal-tb` 和 `white-space: nowrap`。
-- **不用系统的 `window.confirm`**（TT 里不一定弹得出来），确认一律用 `ui.js` 里的 `askConfirm()`。
+- **不用系统的 `window.confirm`**（TT 里不一定弹得出来），确认一律用 `ui.js` 里的 `askConfirm()`（页面文件里写 `app.askConfirm()`）。
 - **三处都要能用**：PC 浏览器、手机浏览器访问的（云）酒馆、TT（TauriTavern，iOS WebView）。手机优先：触控目标 ≥44px，面板按 visualViewport 定尺寸。
 - **每次发版都更新 README**：在最上面加 `## 版本号 标题`，下面只写这次的变动，用作者看得懂的话，不写代码细节。插件设置页的「更新日志」读的就是 README 里第一个 `##` 段落。
 - **发版打包**（作者要 zip 时）：根目录只放运行文件——`manifest.json`、`index.js`、`style.css`、`README.md`、`src/`。不放 `.github`、测试脚本、CLAUDE.md，README 里也不要写「没有工作流」之类的话。
@@ -48,14 +48,25 @@ EOF
 | `src/settings.js` | 设置默认值与读写；每个角色的家存在 `extension_settings.mengxiangjia.homes[角色头像文件名]` |
 | `src/api.js` | 生成通道：跟随当前 API（`ctx.generateRaw`），或副 API（酒馆连接配置 `ConnectionManagerRequestService.sendRequest` / 手动接口经 `/api/backends/chat-completions/generate` 转发）。副 API 出错直接报，不退回主 API |
 | `src/character.js` | 读角色卡、用户人设、角色世界书（`/api/worldinfo/get`）、最近聊天 |
-| `src/home.js` | 家的数据和所有生成：盖房子、回家、回应、纸条回信、布置改动记录、「他挑的」、按描述做家具 |
+| `src/home-prompts.js` | 所有生成用的系统提示词（改提示词来这里） |
+| `src/home-shared.js` | 生成共用：`liveHome`（等完确认家还在）、给模型看的家的近况、最近记录、最近纸条、现在时间 |
+| `src/home-rooms.js` | 房子大小、房间种类（`roomTypeOf`）、默认家具、加减房间、搬家 |
+| `src/home-house.js` | 盖房子（设计提案、入住）和他的样子（像素小人形象） |
+| `src/home-visit.js` | 他回家（含纸条回信、他留的纸条、轮到他时的日记）、回应他、什么时候回家 |
+| `src/home-notes.js` | 小纸条：贴纸条、请他回、请他留一张、已读 |
+| `src/home-diary.js` | 交换日记 |
+| `src/home-decor.js` | 布置改动记录、「他挑的」、按描述做家具 |
 | `src/furniture.js` | 家具图库（`CATALOG` + 每种的 SVG 画法）、房间正面图绘制、平面图、小预览 |
 | `src/floating.js` | 可选的小屋浮窗入口（拖动换位置、轻点打开） |
 | `src/theme.js` | 三套主题（手帐 / 像素 / 绘本）和心情表情 |
 | `src/art.js`、`src/imageApi.js`、`src/inflate.js` | 生图：准备提示词 → 请求一张图 → 预览 → 保存到酒馆 `/api/images/upload` |
 | `src/sprite.js` | Q 版像素小人：16×24 像素格，按形象数据画；`poseFor` 按家具和他在做的事定站/坐/拿书/拿杯/闭眼 |
 | `src/decorate.js` | 布置模式：拖动吸附、工具条、抽屉、仓库、墙面地板颜色、撤销重做 |
-| `src/ui.js` | 全屏 `<dialog>` 面板与各页面：首页、盖房子、纸条、回家记录、设置 |
+| `src/ui.js` | 界面核心：全屏 `<dialog>` 面板的打开关闭、`askConfirm`、`render`、忙碌条 `run`、`go` 换页、事件分发；本身不画页面 |
+| `src/ui-common.js` | 界面共用的图标 `ICON` 和没有角色时的提示 |
+| `src/view-home.js` | 小屋首页（房间、他在做什么、家具卡、扩建与搬家）和回家记录 |
+| `src/view-build.js` | 盖房子 / 房子档案 |
+| `src/view-notes.js`、`src/view-diary.js`、`src/view-look.js`、`src/view-art.js`、`src/view-settings.js` | 小纸条、交换日记、他的样子、画出我们的家、设置（含副 API 模型列表、生图设置、更新日志、拆家） |
 | `src/util.js` | 小工具，含宽松 JSON 解析 `parseJsonLoose` |
 | `style.css` | 全部样式限定在 `#mxj-root` 内；已经抵消了酒馆全局对 button/input/select/checkbox 的主题样式 |
 
@@ -70,7 +81,7 @@ EOF
 - `changes[]` + `changesSeenAt`：用户布置的改动，回家时写进提示词
 - `suggestions`：「他挑的」当前结果
 - `house.storage[]`：仓库。收进仓库和移除房间时整件家具放进来（保留 `art`、`dy` 等），记 `previousRoom`。0.5.6 曾误存到 `furnitureStorage`，`settings.getHome()` 会自动合并过来
-- 房间 `type`：房间种类（客厅、卧室……），用 `home.js` 的 `roomTypeOf()` 从名字认；`art` + `useArt`：画好的房间背景，`useArt === false` 时显示纯色墙地
+- 房间 `type`：房间种类（客厅、卧室……），用 `home-rooms.js` 的 `roomTypeOf()` 从名字认；`art` + `useArt`：画好的房间背景，`useArt === false` 时显示纯色墙地
 - `look`：像素小人形象 `{hairStyle, hair, skin, eyes, outfit, accent, pants, shoes, accessory}`；没有时按名字给默认样子
 - `diary`：`{mode:'visit'|'daily'|'manual', entries[{author, date, weather, text, quote, stamp}], readAt}`。mode 为 visit 时，他的日记并在回家那次调用里一起生成
 
@@ -81,6 +92,9 @@ EOF
 - 面板是挂在 `body` 上的 `<dialog>` + `showModal()`，尺寸跟 `visualViewport`（CSS 变量 `--mxj-vw/vh/vl/vt`），TT 下加 `data-tt-mobile-surface`。
 - 事件用 `data-act` 委托；输入用 `data-field`。改界面后调用 `render()`，需要保留滚动位置时先设 `state.keepScroll = true`。
 - 生成一律走 `run(提示文字, signal => …)`，自带忙碌条和「取消」。
+- 每页一个 `view-*.js`，导出 `setup(app)`，返回这一页的 `views`（画页面）、`titles`（标题）、`actions`（`data-act` 按钮）、`fields`（`data-field` 改完时）、`inputs`（边打边存）、`forms`（回车提交）、`enter`（进页面前）、`after`（画完之后）。`ui.js` 把它们合起来分发；同名重复登记会在控制台警告。`app` 里有 `state`、`render`、`run`、`flash`、`go`、`askConfirm`、`root()`、`renderView(页名, char, home)`、`doVisit()`。
+- 页面文件之间不互相 import，要用别的页就走 `app`（比如没房子时首页画盖房子页：`app.renderView('build', …)`）。没有登记的 `data-field` 当设置项存（`view-settings.js` 的 `saveField`）。
+- 新加按钮：在对应页面的 `actions` 里加一项；新加页面：新建 `view-xxx.js`，在 `ui.js` 的 `pages` 里加上。
 
 ## 待定
 
@@ -88,7 +102,7 @@ EOF
 
 ## 生成的约定
 
-- 所有生成都走 `api.js` 的 `generate()`：取消后直接结束，结果不会写进存档；等完再写之前用 `liveHome(char)` 确认家还在。
+- 所有生成都走 `api.js` 的 `generate()`：取消后直接结束，结果不会写进存档；等完再写之前用 `home-shared.js` 的 `liveHome(char)` 确认家还在。
 - 副 API 的模型列表：手动接口和酒馆连接配置都能拉（`fetchManualModels` / `fetchProfileModels`），结果缓存在 `independentModelCache`。
 
 ## 调用次数

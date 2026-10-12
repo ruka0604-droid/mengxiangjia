@@ -1,12 +1,12 @@
 // 梦想家 · 布置：改动记录、「他挑的」、按描述做家具
-import { homeTheme, themeName } from './theme.js?mxj=0.5.7';
-import { now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.7';
-import { generate } from './api.js?mxj=0.5.7';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.7';
-import { getHome, setHome } from './settings.js?mxj=0.5.7';
-import { CATALOG, CATALOG_PROMPT } from './furniture.js?mxj=0.5.7';
-import { SUGGEST_SYSTEM, DESCRIBE_SYSTEM } from './home-prompts.js?mxj=0.5.7';
-import { liveHome, houseSummary } from './home-shared.js?mxj=0.5.7';
+import { homeTheme, themeName } from './theme.js?mxj=0.5.8';
+import { now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.8';
+import { generate } from './api.js?mxj=0.5.8';
+import { gatherContext, contextBlock } from './character.js?mxj=0.5.8';
+import { getHome, setHome } from './settings.js?mxj=0.5.8';
+import { CATALOG, CATALOG_PROMPT } from './furniture.js?mxj=0.5.8';
+import { SUGGEST_SYSTEM, DESCRIBE_SYSTEM } from './home-prompts.js?mxj=0.5.8';
+import { liveHome, houseSummary } from './home-shared.js?mxj=0.5.8';
 
 export function pendingChanges(home) {
     const seen = Number(home?.changesSeenAt) || 0;
