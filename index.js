@@ -1,6 +1,6 @@
 // 梦想家 · 入口：魔法棒菜单 + 扩展设置里的打开按钮
-import { getSettings } from './src/settings.js?mxj=0.3.1';
-import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.3.1';
+import { getSettings } from './src/settings.js?mxj=0.4.0';
+import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.4.0';
 
 const WAND_ID = 'mxj_wand_entry';
 const DRAWER_ID = 'mxj_settings_drawer';
@@ -11,7 +11,7 @@ let clickHandler = null;
 let chatHandler = null;
 
 async function loadUi() {
-    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.3.1');
+    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.4.0');
     return uiModule;
 }
 
@@ -82,7 +82,7 @@ function installSettingsDrawer() {
         void openPanel(event.currentTarget);
     });
     host.append(wrap);
-    import('./src/apiSettings.js?mxj=0.3.1')
+    import('./src/apiSettings.js?mxj=0.4.0')
         .then(mod => mod.mountApiSettings(wrap.querySelector('.mxj-api')))
         .catch(error => console.error(LOG_PREFIX, 'API 设置加载失败', error));
 }
