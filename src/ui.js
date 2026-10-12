@@ -1,22 +1,22 @@
-import { refreshFloating } from './floating.js?mxj=0.5.9';
-import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.9';
-import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.9';
-import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.9';
+import { refreshFloating } from './floating.js?mxj=0.5.10';
+import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.10';
+import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.10';
+import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.10';
 // 梦想家 · 界面
-import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.9';
-import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.9';
-import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.9';
-import { characterView, avatarUrl } from './character.js?mxj=0.5.9';
-import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.9';
+import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.10';
+import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.10';
+import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.10';
+import { characterView, avatarUrl } from './character.js?mxj=0.5.10';
+import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.10';
 import {
     HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse, NOTE_KINDS, NOTE_PLACES,
     designHouse, createHome, comeHome, respond, postNote, replyToNote, writeCharNote,
     markCharNotesRead, unreadFromChar, shouldAutoVisit, isAway,
     getLook, setLook, generateLook,
     WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary, shouldAutoDiary,
-} from './home.js?mxj=0.5.9';
-import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.9';
-import { createDecorator } from './decorate.js?mxj=0.5.9';
+} from './home.js?mxj=0.5.10';
+import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.10';
+import { createDecorator } from './decorate.js?mxj=0.5.10';
 
 const ROOT_ID = 'mxj-root';
 
@@ -657,6 +657,47 @@ function viewSettings(char, home) {
       </section>` : ''}`;
 }
 
+
+// 生图模型发现：根地址、/v1、完整生图端点均可输入；不改动已保存的地址。
+async function fetchImageModels(baseUrl, apiKey) {
+    let url;
+    try { url = new URL(String(baseUrl || '').trim()); }
+    catch { throw new Error('请先填写有效的生图 API 地址'); }
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('生图 API 地址格式不正确');
+    if (url.search || url.hash) throw new Error('请使用不含查询参数的 API 地址拉取模型');
+    let path = url.pathname.replace(/\/+$/, '');
+    path = path.replace(/\/(?:ai\/generate-image|images\/generations|generate-image|generate|models)\/?$/i, '');
+    const bases = [path];
+    if (/\/v1$/i.test(path)) bases.push(path.replace(/\/v1$/i, ''));
+    else bases.push(path + '/v1');
+    const candidates = [...new Set(bases.map(p => url.origin + (p || '') + '/models'))];
+    const failures = [];
+    for (const endpoint of candidates) {
+        try {
+            const response = await fetch(endpoint, {
+                method: 'GET', credentials: 'omit', redirect: 'follow',
+                headers: apiKey ? {Authorization: `Bearer ${String(apiKey).trim()}`, Accept: 'application/json'} : {Accept: 'application/json'},
+            });
+            const raw = await response.text();
+            const isHtml = /<\s*(?:!doctype|html|head|body)\b/i.test(raw.slice(0, 400));
+            if (isHtml) { failures.push('返回网页而非模型数据'); continue; }
+            if (!response.ok) { failures.push(`HTTP ${response.status}`); continue; }
+            let payload;
+            try { payload = JSON.parse(raw); }
+            catch { failures.push('返回内容不是有效 JSON'); continue; }
+            const entries = Array.isArray(payload?.data) ? payload.data
+                : Array.isArray(payload?.models) ? payload.models
+                : Array.isArray(payload) ? payload : [];
+            const models = [...new Set(entries.map(m => typeof m === 'string' ? m : (m?.id || m?.name || '')).filter(Boolean))];
+            if (models.length) return models;
+            failures.push('返回 JSON，但没有可识别的模型列表');
+        } catch (error) {
+            failures.push(error instanceof TypeError ? '浏览器网络或跨域访问失败' : String(error?.message || '请求失败'));
+        }
+    }
+    throw new Error(`未能拉取模型（已尝试 ${candidates.length} 种标准地址）：${[...new Set(failures)].join('；')}。可手动填写模型 ID；部分服务需要其专用接口或酒馆代理。`);
+}
+
 function imageSettingsCard() {
     const cfg = getSettings();
     const text = (key,label,type='text') => `<label class="mxj-field"><span>${label}</span><input class="mxj-input" type="${type}" data-field="${key}" value="${esc(cfg[key])}" autocomplete="off" placeholder="${label}"></label>`;
@@ -668,7 +709,7 @@ function imageSettingsCard() {
       ${text('imageModel','模型 ID')}
       <label class="mxj-field"><span>描述格式（按服务要求选择）</span><select class="mxj-input" data-field="imagePromptFormat"><option value="structured" ${cfg.imagePromptFormat==='structured'?'selected':''}>结构化描述</option><option value="legacy" ${cfg.imagePromptFormat==='legacy'?'selected':''}>基础描述</option></select></label>
       <button type="button" class="mxj-btn" data-act="image-check" ${state.busy?'disabled':''}>检查填写（不生图）</button>
-      <p class="mxj-muted">需要服务允许浏览器跨域访问。地址可填写站点根地址或完整生图端点。更换地址会分别记住密钥。</p>
+      <p class="mxj-muted">支持根地址、/v1 地址或完整生图端点；自动尝试标准模型列表路径。部分服务不提供兼容模型列表或限制浏览器跨域访问，此时可手动填写模型 ID。</p>
       <details><summary>画幅与高级参数</summary><div class="mxj-two">${number('imageWidth','房间／家具宽',64)}${number('imageHeight','房间／家具高',64)}${number('imagePortraitWidth','人物宽',64)}${number('imagePortraitHeight','人物高',64)}${number('imageSteps','步数')}${number('imageScale','提示词相关性',0.1)}${number('imageSeed','种子（0 随机）')}</div>
       ${text('imageSampler','采样器 ID')}${text('imageNoise','噪声计划 ID')}
       <label class="mxj-check"><span>人物／家具使用纯色底辅助抠图</span><input type="checkbox" data-field="imageCutout" ${cfg.imageCutout?'checked':''}></label>
@@ -891,16 +932,9 @@ function onClick(event) {
         case 'image-fetch-models': {
             const cfg = getSettings();
             void run('正在拉取生图模型…', async () => {
-                const base = String(cfg.imageBaseUrl || '').trim().replace(/\/+$/, '').replace(/\/(?:images\/generations|generate|models)\/?$/i,'');
-                if (!base) throw new Error('请先填写生图 API 地址');
-                const url = `${base}/models`;
-                const response = await fetch(url, {headers:cfg.imageKey?{Authorization:`Bearer ${cfg.imageKey}`}:{},credentials:'omit'});
-                if (!response.ok) throw new Error(`拉取失败（HTTP ${response.status}）。服务可能不支持 /models 或浏览器跨域访问，请手动填写模型 ID`);
-                const payload = await response.json();
-                const list = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.models) ? payload.models : [];
-                state.imageModels = [...new Set(list.map(x=>typeof x==='string'?x:(x.id||x.name||'')).filter(Boolean))];
-                if (!state.imageModels.length) throw new Error('接口未返回可识别模型列表，请手动填写模型 ID');
-                flash(`取得 ${state.imageModels.length} 个生图模型`);
+                const models = await fetchImageModels(cfg.imageBaseUrl, cfg.imageKey);
+                state.imageModels = models;
+                flash(`取得 ${models.length} 个生图模型`);
             });
             break;
         }

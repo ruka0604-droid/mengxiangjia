@@ -1,11 +1,11 @@
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.9';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.10';
 // 梦想家 · 家的数据与生成
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.9';
-import { generate } from './api.js?mxj=0.5.9';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.9';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.9';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.9';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.9';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.10';
+import { generate } from './api.js?mxj=0.5.10';
+import { gatherContext, contextBlock } from './character.js?mxj=0.5.10';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.10';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.10';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.10';
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];
