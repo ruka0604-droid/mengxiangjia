@@ -1,10 +1,10 @@
 {
     "display_name": "梦想家",
     "loading_order": 120,
-    "js": "index.js?mxj=0.5.9",
-    "css": "style.css?mxj=0.5.9",
+    "js": "index.js?mxj=0.5.10",
+    "css": "style.css?mxj=0.5.10",
     "author": "Toto",
-    "version": "0.5.9",
+    "version": "0.5.10",
     "homePage": "https://github.com/ruka0604-droid/mengxiangjia",
     "auto_update": true,
     "minimum_client_version": "1.13.0",
