@@ -1,7 +1,6 @@
 /* 梦想家 · 样式（全部限定在 #mxj-root 内，不影响酒馆） */
 
 .mxj-wand-icon svg { display: block; }
-.mxj-drawer-text { margin: 4px 0 8px; opacity: .85; }
 
 #mxj-root {
     --mxj-ground: #E6EBE3;
@@ -462,26 +461,6 @@
 #mxj-root .mxj-card.is-dim h3 { color: var(--mxj-muted); }
 
 /* 扩展设置抽屉里的副 API 设置（用酒馆自己的样式） */
-.mxj-drawer .mxj-api { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.mxj-drawer .mxj-api label { display: flex; flex-direction: column; gap: 4px; }
-.mxj-drawer .mxj-api .mxj-api-row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
-.mxj-drawer .mxj-api .mxj-api-row > .text_pole { flex: 1; min-width: 0; }
-.mxj-drawer .mxj-api .mxj-api-radio { flex-direction: row; align-items: center; gap: 6px; }
-.mxj-drawer .mxj-api-status { font-size: 0.9em; opacity: 0.85; min-height: 1.2em; }
-.mxj-drawer .mxj-api hr { width: 100%; opacity: 0.3; }
-.mxj-drawer .menu_button {
-    writing-mode: horizontal-tb !important;
-    white-space: nowrap;
-    width: auto;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6px 12px;
-    min-height: 36px;
-    flex: none;
-}
-.mxj-drawer .mxj-drawer-open { margin-bottom: 4px; }
-.mxj-drawer .mxj-api .mxj-api-row label { flex: 1; min-width: 120px; }
 
 /* 三主题基础层，字体全部使用系统字体。 */
 #mxj-root[data-theme="scrapbook"] {
@@ -504,3 +483,113 @@
 #mxj-root .mxj-look-preview > svg { width:90px; height:135px; }
 #mxj-root [data-field="draftColor"] { min-width:60px; min-height:44px; }
 #mxj-root textarea[data-field="draftAppearance"], #mxj-root textarea[data-field="appearance"] { width:100%; box-sizing:border-box; resize:vertical; }
+
+/* 三种交互主题：纸页、游戏窗、绘本。只绘制控件，房屋美术来自生图。 */
+#mxj-root[data-theme="scrapbook"] {
+ --mxj-ground:#D9C4A3; --mxj-paper:#FCF1D9; --mxj-white:#FFF9EA;
+ --mxj-ink:#493522; --mxj-muted:#796446; --mxj-line:#AE8C61;
+ --mxj-line-soft:#DFCAAA; --mxj-green:#647149; --mxj-green-soft:#EAE9CB;
+ --mxj-display:"Kaiti SC","STKaiti","KaiTi",serif;
+ --mxj-body:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+}
+#mxj-root[data-theme="scrapbook"] .mxj-window { border:4px solid #A58B65; border-radius:10px; background:repeating-linear-gradient(6deg,#EEE0C4 0,#F0E3CD 2px,#EADCC0 3px,#EEE0C4 5px); }
+#mxj-root[data-theme="scrapbook"] .mxj-top { border-bottom:2px dashed #AD9673; padding:18px 10px; background:#F4E8CD; }
+#mxj-root[data-theme="scrapbook"] .mxj-title { font-size:25px; letter-spacing:2px; }
+#mxj-root[data-theme="scrapbook"] .mxj-card { position:relative; border:1px solid #C3A77A; border-radius:3px 10px 7px 5px; box-shadow:2px 3px 0 #BDA17F44; background:repeating-linear-gradient(0deg,#FCF1D9,#FCF1D9 26px,#D7C4A64D 27px); }
+#mxj-root[data-theme="scrapbook"] .mxj-card::before { content:""; position:absolute; width:38px; height:10px; background:#BDCAA9AA; top:-5px; left:12px; transform:rotate(-5deg); pointer-events:none; }
+#mxj-root[data-theme="scrapbook"] .mxj-btn, #mxj-root[data-theme="scrapbook"] .mxj-chip, #mxj-root[data-theme="scrapbook"] .mxj-entry { border:1px solid #AB9169; border-radius:4px 9px 5px 8px; background:#F9EDCF; box-shadow:1px 2px 0 #B9A18155; color:#503D29; }
+#mxj-root[data-theme="scrapbook"] .mxj-btn.is-primary, #mxj-root[data-theme="scrapbook"] .mxj-chip.is-on { background:#647149; color:#FFF6DF; }
+#mxj-root[data-theme="scrapbook"] .mxj-scene { border:6px solid #F6EACF; border-radius:2px; outline:1px solid #B69B70; }
+#mxj-root[data-theme="scrapbook"] .mxj-entries { padding:10px 0; border-top:2px dashed #AA966F; }
+#mxj-root[data-theme="scrapbook"] .mxj-entry { border-radius:50% 50% 6px 6px; }
+#mxj-root[data-theme="scrapbook"] .mxj-diary-book { background:#F8EDD3; border-left:8px double #B09974; }
+
+#mxj-root[data-theme="pixel"] {
+ --mxj-ground:#264D60; --mxj-paper:#F8E0AF; --mxj-white:#FFF0CD;
+ --mxj-ink:#392A20; --mxj-muted:#785338; --mxj-line:#A66C39; --mxj-line-soft:#D4AC72;
+ --mxj-green:#52723E; --mxj-green-soft:#EDD7A5;
+ --mxj-display:ui-monospace,"SFMono-Regular","Consolas",monospace;
+}
+#mxj-root[data-theme="pixel"] .mxj-window { border:4px solid #132F3C; border-radius:0; box-shadow:inset 0 0 0 3px #74A5B4, 5px 5px 0 #142A35; }
+#mxj-root[data-theme="pixel"] .mxj-top { background:#39748B; border-bottom:4px solid #1A3C50; color:#FFF4D5; }
+#mxj-root[data-theme="pixel"] .mxj-title, #mxj-root[data-theme="pixel"] .mxj-subtitle { color:#FFF5D8; }
+#mxj-root[data-theme="pixel"] .mxj-main { background:#264D60; }
+#mxj-root[data-theme="pixel"] .mxj-card, #mxj-root[data-theme="pixel"] .mxj-strip { border:3px solid #98643A; border-radius:0; box-shadow:inset 0 0 0 2px #FFF0CE,3px 3px 0 #173B47; }
+#mxj-root[data-theme="pixel"] .mxj-btn, #mxj-root[data-theme="pixel"] .mxj-chip, #mxj-root[data-theme="pixel"] .mxj-entry, #mxj-root[data-theme="pixel"] .mxj-size { background:#E8BB7B; border:3px solid #855231; border-radius:0; box-shadow:inset 2px 2px 0 #FFE4A5,2px 2px 0 #142F39; }
+#mxj-root[data-theme="pixel"] .mxj-btn.is-primary, #mxj-root[data-theme="pixel"] .mxj-chip.is-on { background:#597D43; border-color:#314B2A; color:#FFF5D8; }
+#mxj-root[data-theme="pixel"] .mxj-scene { border:4px solid #A96C37; border-radius:0; box-shadow:0 0 0 2px #183A44; }
+#mxj-root[data-theme="pixel"] .mxj-scene image, #mxj-root[data-theme="pixel"] .mxj-art-preview, #mxj-root[data-theme="pixel"] .mxj-art-person img { image-rendering:pixelated; }
+#mxj-root[data-theme="pixel"] .mxj-main > .mxj-muted { color:#FFF0CB; }
+#mxj-root[data-theme="pixel"] .mxj-input { border:2px solid #90683A; border-radius:0; background:#FFF0CC; }
+
+#mxj-root[data-theme="storybook"] {
+ --mxj-ground:#E7C8C5; --mxj-paper:#FFF4E8; --mxj-white:#FFFAF3;
+ --mxj-ink:#603A3E; --mxj-muted:#8A6263; --mxj-line:#C69A91; --mxj-line-soft:#EAD0C0;
+ --mxj-green:#AB6572; --mxj-green-soft:#F4E0DA;
+ --mxj-display:"Songti SC","STSong","SimSun",serif;
+}
+#mxj-root[data-theme="storybook"] .mxj-window { border:3px solid #C89691; background:linear-gradient(155deg,#F5E4D5,#E7C7CB 65%,#DBC2CE); border-radius:18px; }
+#mxj-root[data-theme="storybook"] .mxj-top { background:linear-gradient(120deg,#FFF2E3,#EBD1D0); border-bottom:1px solid #C49888; padding:18px 12px; }
+#mxj-root[data-theme="storybook"] .mxj-title { font-size:26px; letter-spacing:3px; font-weight:500; }
+#mxj-root[data-theme="storybook"] .mxj-card { border:1px solid #CFA597; border-radius:8px 24px; background:linear-gradient(130deg,#FFF7EC,#F9EAE3); box-shadow:0 4px 14px #A66B7024; }
+#mxj-root[data-theme="storybook"] .mxj-card h3 { font-family:var(--mxj-display); letter-spacing:1px; border-bottom:1px solid #DFC2AD; padding-bottom:8px; }
+#mxj-root[data-theme="storybook"] .mxj-btn, #mxj-root[data-theme="storybook"] .mxj-chip, #mxj-root[data-theme="storybook"] .mxj-entry { border:1px solid #C99D94; background:linear-gradient(#FFF5E6,#F1D9D4); border-radius:8px 16px; box-shadow:inset 0 0 0 2px #FFF9F066; }
+#mxj-root[data-theme="storybook"] .mxj-btn.is-primary, #mxj-root[data-theme="storybook"] .mxj-chip.is-on { background:linear-gradient(#BA7A83,#985966); color:#FFF8EA; }
+#mxj-root[data-theme="storybook"] .mxj-scene { border:3px solid #F9E9D9; outline:1px solid #C2978D; border-radius:18px 4px; }
+#mxj-root[data-theme="storybook"] .mxj-entries { padding:10px 0; border-top:1px solid #C79A91; }
+#mxj-root[data-theme="storybook"] .mxj-diary-book { background:#FFF4EA; border:1px solid #D1A99D; box-shadow:0 5px 16px #A5767622; }
+
+#mxj-root .mxj-art-person { position:absolute; right:4%; bottom:0; width:38%; height:76%; padding:0; border:0; background:none; box-shadow:none; display:block; }
+#mxj-root .mxj-art-person.is-storybook { width:52%; height:88%; }
+#mxj-root .mxj-art-person img { width:100%; height:100%; object-fit:contain; object-position:bottom; }
+#mxj-root .mxj-art-person span { position:absolute; top:8px; right:0; font-size:22px; background:var(--mxj-paper); padding:3px 8px; border-radius:12px; }
+#mxj-root .mxj-art-preview { display:block; max-width:100%; width:auto; max-height:360px; object-fit:contain; margin:auto; background:repeating-conic-gradient(#ECE7DF 0 25%,#FFF9F0 0 50%) 0/20px 20px; border-radius:8px; }
+#mxj-root .mxj-art-preview.is-room { width:100%; }
+#mxj-root .mxj-art-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--mxj-line-soft); }
+#mxj-root .mxj-art-item img { width:58px; height:58px; object-fit:contain; }
+#mxj-root .mxj-art-item span { flex:1; min-width:0; }
+#mxj-root .mxj-art-draft { border:2px solid var(--mxj-green); }
+#mxj-root .mxj-input { max-width:100%; box-sizing:border-box; }
+#mxj-root .mxj-card summary { min-height:44px; cursor:pointer; display:flex; align-items:center; }
+#mxj-root .mxj-two > * { min-width:0; }
+#mxj-root textarea.mxj-input { width:100%; min-height:70px; }
+@media (prefers-reduced-motion:reduce) { #mxj-root * { animation:none !important; transition:none !important; } }
+
+#mxj-root[data-theme="pixel"] .mxj-diary-text, #mxj-root[data-theme="pixel"] .mxj-diary-input, #mxj-root[data-theme="pixel"] .mxj-note-text { font-family:system-ui,sans-serif; font-size:17px; line-height:1.8; color:var(--mxj-ink); }
+#mxj-root[data-theme="pixel"] .mxj-notebook, #mxj-root[data-theme="pixel"] .mxj-diary-page { border:3px solid #98643A; border-radius:0; background:#FFEBC4; }
+#mxj-root[data-theme="scrapbook"] .mxj-notebook, #mxj-root[data-theme="scrapbook"] .mxj-diary-page { border-left:7px double #A58D66; background:#FFF3D9; }
+#mxj-root[data-theme="storybook"] .mxj-diary-text, #mxj-root[data-theme="storybook"] .mxj-note-text { color:#77464F; font-family:"Songti SC","STSong",serif; font-size:18px; line-height:1.9; }
+#mxj-root[data-theme="storybook"] .mxj-notebook, #mxj-root[data-theme="storybook"] .mxj-diary-page { background:#FFF2E9; border:1px solid #CEA59D; border-radius:8px 20px; }
+#mxj-root[data-theme="pixel"] .mxj-tile, #mxj-root[data-theme="pixel"] .mxj-tab, #mxj-root[data-theme="pixel"] .mxj-tool { border:2px solid #885A33; border-radius:0; background:#F4D39E; }
+#mxj-root[data-theme="storybook"] .mxj-tile, #mxj-root[data-theme="storybook"] .mxj-tab { border:1px solid #CDA297; background:#FFF0E6; border-radius:7px 15px; }
+#mxj-root[data-theme="scrapbook"] .mxj-tile, #mxj-root[data-theme="scrapbook"] .mxj-tab { border:1px dashed #AE9670; background:#FFF3D9; border-radius:4px; }
+
+/* 浮窗在酒馆页面上独立显示；默认关闭，不占扩展管理页。 */
+#mxj-floating-entry {
+ position:fixed !important; z-index:10001; width:56px !important; height:56px !important;
+ min-width:56px !important; min-height:56px !important; padding:0 !important; margin:0 !important;
+ display:flex; align-items:center; justify-content:center; overflow:visible;
+ border:1px solid #BEA477 !important; border-radius:50% !important; background:rgba(255,245,221,.96) !important;
+ box-shadow:0 3px 12px #392C3140 !important; cursor:pointer; touch-action:none;
+ user-select:none; -webkit-user-select:none; -webkit-tap-highlight-color:transparent;
+ transform:none !important; filter:none !important; writing-mode:horizontal-tb !important;
+}
+#mxj-floating-entry[hidden] { display:none !important; }
+#mxj-floating-entry img { width:52px; height:52px; display:block; object-fit:contain; pointer-events:none; border:0; }
+#mxj-floating-entry[data-theme="pixel"] { border:2px solid #315267 !important; background:#F9E5BB !important; border-radius:12px !important; }
+#mxj-floating-entry[data-theme="storybook"] { border-color:#C6989D !important; background:rgba(255,242,236,.96) !important; }
+#mxj-floating-entry:focus-visible { outline:3px solid #407961 !important; outline-offset:3px; }
+#mxj-floating-entry.is-dragging { opacity:.85; cursor:grabbing; }
+
+/* V0.5.2 海盐汽水：仅默认 UI 美术，不锁定墙面和地板装修色 */
+#mxj-root[data-theme="pixel"] { --mxj-ground:#27677D;--mxj-paper:#FFF1D8;--mxj-white:#FFFAEE;--mxj-ink:#214B5D;--mxj-muted:#547989;--mxj-line:#579EB5;--mxj-line-soft:#A5D5C5;--mxj-green:#337D80;--mxj-green-soft:#D7EFEB; }
+#mxj-root[data-theme="pixel"] .mxj-top {background:#579EB5;border-bottom-color:#27677D}
+#mxj-root[data-theme="pixel"] .mxj-main {background:#27677D}
+#mxj-root[data-theme="pixel"] .mxj-card,#mxj-root[data-theme="pixel"] .mxj-strip {border-color:#579EB5;box-shadow:inset 0 0 0 2px #FFF1D8,3px 3px 0 #164A60}
+#mxj-root[data-theme="pixel"] .mxj-btn,#mxj-root[data-theme="pixel"] .mxj-chip,#mxj-root[data-theme="pixel"] .mxj-entry,#mxj-root[data-theme="pixel"] .mxj-size {background:#FFF1D8;border-color:#579EB5;color:#27677D;box-shadow:inset 2px 2px 0 #FFFFFF,2px 2px 0 #164A60}
+#mxj-root[data-theme="pixel"] .mxj-btn.is-primary,#mxj-root[data-theme="pixel"] .mxj-chip.is-on {background:#579EB5;border-color:#27677D;color:#FFFFFF}
+#mxj-root[data-theme="pixel"] .mxj-scene {border-color:#E5B77B;box-shadow:0 0 0 2px #27677D}
+#mxj-root[data-theme="pixel"] .mxj-input {border-color:#579EB5;background:#FFF8E9}
+#mxj-root[data-theme="pixel"] .mxj-notebook,#mxj-root[data-theme="pixel"] .mxj-diary-page {border-color:#579EB5;background:#FFF1D8}
+#mxj-root[data-theme="pixel"] .mxj-tile,#mxj-root[data-theme="pixel"] .mxj-tab,#mxj-root[data-theme="pixel"] .mxj-tool {border-color:#579EB5;background:#FFF1D8}
+@media (pointer:coarse) {#mxj-root .mxj-tool,#mxj-root .mxj-chip,#mxj-root .mxj-tab {min-height:44px} #mxj-root .mxj-btn {min-height:44px}}

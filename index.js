@@ -1,9 +1,9 @@
-// 梦想家 · 入口：魔法棒菜单 + 扩展设置里的打开按钮
-import { getSettings } from './src/settings.js?mxj=0.4.0';
-import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.4.0';
+import { mountFloating, refreshFloating, destroyFloating } from './src/floating.js?mxj=0.5.6';
+// 梦想家 · 入口：魔法棒菜单 + 可选浮窗
+import { getSettings } from './src/settings.js?mxj=0.5.6';
+import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.5.6';
 
 const WAND_ID = 'mxj_wand_entry';
-const DRAWER_ID = 'mxj_settings_drawer';
 const ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
 
 let uiModule = null;
@@ -11,7 +11,7 @@ let clickHandler = null;
 let chatHandler = null;
 
 async function loadUi() {
-    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.4.0');
+    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.5.6');
     return uiModule;
 }
 
@@ -59,38 +59,12 @@ function installWandEntry() {
     menu.append(entry);
 }
 
-function installSettingsDrawer() {
-    if (document.getElementById(DRAWER_ID)) return;
-    const host = document.getElementById('extensions_settings2') || document.getElementById('extensions_settings');
-    if (!host) return;
-    const wrap = document.createElement('div');
-    wrap.id = DRAWER_ID;
-    wrap.className = 'mxj-drawer';
-    wrap.innerHTML = `
-      <div class="inline-drawer">
-        <div class="inline-drawer-toggle inline-drawer-header">
-          <b>梦想家</b>
-          <div class="inline-drawer-icon fa-solid fa-circle-chevron-down down"></div>
-        </div>
-        <div class="inline-drawer-content">
-          <p class="mxj-drawer-text">和角色一起住的小家。平时从魔法棒进入，也可以在这里打开。下面是生成用的 API 设置，和面板里右上角齿轮的设置是同一份。</p>
-          <button type="button" class="menu_button mxj-drawer-open">打开梦想家</button>
-          <div class="mxj-api"></div>
-        </div>
-      </div>`;
-    wrap.querySelector('.mxj-drawer-open').addEventListener('click', event => {
-        void openPanel(event.currentTarget);
-    });
-    host.append(wrap);
-    import('./src/apiSettings.js?mxj=0.4.0')
-        .then(mod => mod.mountApiSettings(wrap.querySelector('.mxj-api')))
-        .catch(error => console.error(LOG_PREFIX, 'API 设置加载失败', error));
-}
-
 function init() {
     getSettings();
     installWandEntry();
-    installSettingsDrawer();
+    // 清理旧版可能留下的扩展设置面板，不影响其他扩展。
+    document.getElementById('mxj_settings_drawer')?.remove();
+    mountFloating(() => openPanel());
     // 魔法棒菜单可能稍后才出现：点魔法棒时补装
     clickHandler = event => {
         if (event.target?.closest?.('#extensionsMenuButton')) installWandEntry();
@@ -102,6 +76,7 @@ function init() {
         chatHandler = () => {
             installWandEntry();
             uiModule?.onChatChanged?.();
+            refreshFloating();
         };
         c.eventSource.on(types.CHAT_CHANGED, chatHandler);
     }
@@ -109,7 +84,8 @@ function init() {
 
 export function onDisable() {
     document.getElementById(WAND_ID)?.remove();
-    document.getElementById(DRAWER_ID)?.remove();
+    document.getElementById('mxj_settings_drawer')?.remove();
+    destroyFloating();
     if (clickHandler) document.removeEventListener('click', clickHandler, true);
     const c = ctx();
     const types = c.eventTypes || c.event_types;
