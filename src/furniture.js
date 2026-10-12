@@ -1,6 +1,6 @@
 // 梦想家 · 家具图库与房间绘制
 // 房间是正面剖面图：viewBox 360×300，墙 0–210，地板 210–300。
-import { esc, shade, hexOr, luminance } from './util.js?mxj=0.4.0';
+import { esc, shade, hexOr, luminance } from './util.js?mxj=0.5.6';
 
 export const SCENE_W = 360;
 export const SCENE_H = 300;
@@ -405,6 +405,8 @@ export function renderRoom(room, furniture, palette, { night = false, selectedId
         svg += `<line x1="0" y1="${y}" x2="${SCENE_W}" y2="${y}" stroke="${shade(floorShade, -0.15)}" stroke-width="1" opacity="0.6"/>`;
     }
     svg += rect(0, WALL_BOTTOM - 6, SCENE_W, 8, pal.trim);
+    // Legacy whole-room art remains saved, but is not painted over editable wall/floor layers.
+    // Room appearance is built from independent surfaces and furniture assets.
     if (decorating) {
         for (let p = 5; p < 100; p += 5) {
             const x = (p / 100 * SCENE_W).toFixed(1);
@@ -451,7 +453,12 @@ export function renderRoom(room, furniture, palette, { night = false, selectedId
         for (const it of groups[key]) {
             const layer = CATALOG[it.type].layer;
             const color = itemColor(it);
-            const drawn = DRAW[it.type](it._x, color, pal, { night });
+            let drawn = DRAW[it.type](it._x, color, pal, { night });
+            if (it.art?.path) {
+                const w = CATALOG[it.type].w;
+                const height = Math.max(24, pivotY(CATALOG[it.type].layer) - drawn.top);
+                drawn = {...drawn, svg: `<image href="${esc(it.art.path)}" x="${it._x-w/2}" y="${drawn.top}" width="${w}" height="${height}" preserveAspectRatio="xMidYMax meet"/>`};
+            }
             const scale = itemScale(it);
             const flip = it.flip ? -1 : 1;
             const pivot = pivotY(layer);

@@ -1,11 +1,18 @@
 // 梦想家 · 设置与存档（存在酒馆的扩展设置里，换设备也在）
-import { ctx, clamp } from './util.js?mxj=0.4.0';
+import { ctx, clamp } from './util.js?mxj=0.5.6';
 
 export const MODULE_NAME = 'mengxiangjia';
 
 const DEFAULTS = Object.freeze({
     // 生成通道：follow = 跟随当前 API；independent = 副 API
     generationSource: 'follow',
+    floatingLauncher: false,
+    floatingPosition: null,
+    // 生图配置独立于文字生成，使用者自行填写兼容服务。
+    imageBaseUrl: '', imageKey: '', imageModel: '',
+    imagePromptFormat: 'structured', imageSampler: 'k_euler', imageNoise: 'karras',
+    imageWidth: 1216, imageHeight: 832, imagePortraitWidth: 832, imagePortraitHeight: 1216,
+    imageSteps: 28, imageScale: 5.5, imageSeed: 0, imageExtra: '{}', imageCutout: true,
     independentConnectionProfileId: '',
     independentApiBaseUrl: '',
     independentApiKey: '',
@@ -22,6 +29,8 @@ const DEFAULTS = Object.freeze({
 });
 
 const NUMERIC = {
+    imageWidth: [64, 4096], imageHeight: [64, 4096], imagePortraitWidth: [64, 4096], imagePortraitHeight: [64, 4096],
+    imageSteps: [1, 100], imageScale: [0, 30], imageSeed: [0, 4294967295],
     independentApiTemperature: [0, 2],
     independentApiMaxTokens: [256, 64000],
     recentChatCount: [0, 40],
@@ -46,6 +55,7 @@ export function getSettings() {
     }
     if (!['follow', 'independent'].includes(r.generationSource)) r.generationSource = 'follow';
     if (!['open', 'manual'].includes(r.visitMode)) r.visitMode = 'open';
+    if (!r.imageConnections || typeof r.imageConnections !== 'object') r.imageConnections = {};
     if (!r.homes || typeof r.homes !== 'object') r.homes = {};
     return r;
 }
@@ -62,6 +72,12 @@ export function save() {
 
 export function updateSettings(patch) {
     const s = getSettings();
+    if (patch.imageBaseUrl !== undefined && String(patch.imageBaseUrl).trim() !== s.imageBaseUrl) {
+        if (s.imageBaseUrl) s.imageConnections[s.imageBaseUrl] = {key:s.imageKey,model:s.imageModel};
+        patch = {...patch, imageBaseUrl:String(patch.imageBaseUrl).trim()};
+        const known = s.imageConnections[patch.imageBaseUrl];
+        patch.imageKey = patch.imageKey ?? known?.key ?? ''; patch.imageModel = patch.imageModel ?? known?.model ?? '';
+    }
     Object.assign(s, patch);
     // 选了酒馆连接配置时，不再保留手动填写的 Key
     if (String(s.independentConnectionProfileId || '').trim()) s.independentApiKey = '';

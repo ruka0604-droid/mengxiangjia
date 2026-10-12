@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.4.0';
-import { getSettings } from './settings.js?mxj=0.4.0';
+import { ctx, clip } from './util.js?mxj=0.5.6';
+import { getSettings } from './settings.js?mxj=0.5.6';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -67,6 +67,7 @@ export async function characterWorldBookText(char, budget = 5000) {
     try {
         const embedded = char?.data?.character_book ?? char?.character_book;
         const linkedName = String(char?.data?.extensions?.world || '').trim();
+        if (embedded) pushEntries(embedded);
         if (linkedName) {
             const controller = new AbortController();
             const timer = setTimeout(() => controller.abort(), 15000);
@@ -82,12 +83,9 @@ export async function characterWorldBookText(char, budget = 5000) {
             } finally {
                 clearTimeout(timer);
             }
-        } else if (embedded) {
-            pushEntries(embedded);
         }
     } catch (error) {
-        console.debug('[梦想家] 读取角色世界书失败，跳过', error);
-        return '';
+        console.debug('[梦想家] 读取绑定世界书失败，仍使用已读取的内嵌内容', error);
     }
     let out = '';
     for (const row of rows) {

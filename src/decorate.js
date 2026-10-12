@@ -1,9 +1,9 @@
 // 梦想家 · 布置模式
-import { esc, uid, clip } from './util.js?mxj=0.4.0';
-import { getHome, setHome } from './settings.js?mxj=0.4.0';
-import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.4.0';
-import { recordChanges, suggestFurniture, furnitureFromText } from './home.js?mxj=0.4.0';
-import { characterView } from './character.js?mxj=0.4.0';
+import { esc, uid, clip } from './util.js?mxj=0.5.6';
+import { getHome, setHome } from './settings.js?mxj=0.5.6';
+import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.5.6';
+import { recordChanges, suggestFurniture, furnitureFromText } from './home.js?mxj=0.5.6';
+import { characterView } from './character.js?mxj=0.5.6';
 
 const ITEM_COLORS = ['#2F5D4E', '#B2584A', '#E2C38A', '#8FA9B8', '#6E4B30', '#F4F1EA', '#2A2A2A', '#D99A4E', '#9C7BB0', '#E8A0A8'];
 const WALL_COLORS = ['#C9D3C0', '#E9E1CF', '#DDE7EA', '#F3E3E0', '#D8D2E6', '#F2E6C8', '#3E5A4C', '#2F3E4E'];
@@ -182,6 +182,8 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
             <div class="mxj-grow"><b>${esc(f.name)}</b><div class="mxj-muted">${f.name === CATALOG[f.type].label ? '' : `${esc(CATALOG[f.type].label)} · `}${who}</div></div>
             <button type="button" class="mxj-link-btn" data-act="deco-unselect">取消选中</button>
           </div>
+          <button type="button" class="mxj-btn" data-act="go" data-view="art">绘制这个家里的图片素材</button>
+          ${f.art?.path ? '<p class="mxj-muted">图片颜色不会随色板变化；需要到绘制页重画。移动、缩放和翻转仍可使用。</p>' : ''}
           <div class="mxj-tools">
             <button type="button" class="mxj-tool" data-act="deco-nudge" data-dx="-1">${IC.left}<span>左移</span></button>
             <button type="button" class="mxj-tool" data-act="deco-nudge" data-dx="1">${IC.right}<span>右移</span></button>
