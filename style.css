@@ -644,16 +644,12 @@
 #mxj-root .mxj-btn.is-danger-solid { background: var(--mxj-red); border-color: var(--mxj-red); color: #FFFFFF; }
 #mxj-root .mxj-look-preview.is-art { display: block; }
 
-/* 0.6.0 · 设置页分页：顶部四个分页、开关、分段按钮、加减按钮 */
-#mxj-root .mxj-stabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
-#mxj-root .mxj-stab {
+/* 0.6.1 · 设置页：分组折叠、开关、分段按钮、加减按钮 */
     min-height: 44px; padding: 4px 2px; margin: 0; cursor: pointer;
     border: 1px solid var(--mxj-line); border-radius: 10px;
     background: var(--mxj-white); color: var(--mxj-ink); box-shadow: none;
     font-size: 14px; white-space: nowrap; touch-action: manipulation;
 }
-#mxj-root .mxj-stab.is-on { background: var(--mxj-green); border-color: var(--mxj-green); color: var(--mxj-paper); font-weight: 700; }
-#mxj-root .mxj-stab:focus-visible { outline: 2px solid var(--mxj-red); outline-offset: 2px; }
 #mxj-root .mxj-sep { height: 1px; background: var(--mxj-line-soft); margin: 4px 0; }
 #mxj-root .mxj-card h3 + .mxj-switch-row { margin-top: -6px; }
 
@@ -698,9 +694,7 @@
 #mxj-root .mxj-stepper-box .mxj-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 #mxj-root .mxj-stepper-unit { font-size: 13px; color: var(--mxj-muted); padding-right: 2px; }
 
-/* 像素：方角、粗边，选中的分页和面板同色 */
-#mxj-root[data-theme="pixel"] .mxj-stab { border: 3px solid #579EB5; border-radius: 0; background: #3E86A0; color: #FFF5D8; }
-#mxj-root[data-theme="pixel"] .mxj-stab.is-on { border-color: #FFF1D8; background: #FFF1D8; color: #214B5D; box-shadow: 2px 2px 0 #164A60; }
+/* 像素：方角、粗边 */
 #mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch,
 #mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch::before { border-radius: 0; }
 #mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch { border-color: #579EB5; background: #FFF8E9; }
@@ -714,8 +708,35 @@
 #mxj-root[data-theme="pixel"] .mxj-stepper-box button { color: #27677D; }
 #mxj-root[data-theme="pixel"] .mxj-sep { background: #A5D5C5; }
 /* 手帐、绘本：跟各自的纸色和圆角 */
-#mxj-root[data-theme="scrapbook"] .mxj-stab { border-color: #AB9169; border-radius: 4px 9px 5px 8px; background: #F9EDCF; color: #503D29; }
-#mxj-root[data-theme="scrapbook"] .mxj-stab.is-on { background: #647149; border-color: #647149; color: #FFF6DF; }
-#mxj-root[data-theme="storybook"] .mxj-stab { border-radius: 18px; }
 #mxj-root[data-theme="storybook"] .mxj-seg, #mxj-root[data-theme="storybook"] .mxj-stepper-box { border-radius: 18px; }
 #mxj-root[data-theme="storybook"] .mxj-sep { display: none; }
+
+#mxj-root .mxj-group { padding: 0; gap: 0; }
+#mxj-root .mxj-group-head {
+    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 60px; margin: 0;
+    padding: 10px 14px; border: 0; border-radius: inherit; background: transparent; box-shadow: none;
+    text-align: left; color: var(--mxj-ink); cursor: pointer; touch-action: manipulation;
+}
+#mxj-root .mxj-group-head > .mxj-grow { display: flex; flex-direction: column; gap: 2px; }
+#mxj-root .mxj-group-title { font-size: 16px; font-weight: 700; color: var(--mxj-ink); }
+#mxj-root .mxj-group-sum { font-size: 12px; line-height: 1.45; color: var(--mxj-muted); word-break: break-all; }
+#mxj-root .mxj-group-head svg { width: 18px; height: 18px; fill: none; stroke: var(--mxj-green); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+#mxj-root .mxj-group.is-open .mxj-group-head svg { transform: rotate(180deg); }
+#mxj-root .mxj-group-head:focus-visible { outline: 2px solid var(--mxj-red); outline-offset: -3px; }
+#mxj-root .mxj-group-body { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 16px; border-top: 1px dashed var(--mxj-line-soft); }
+#mxj-root .mxj-group-flat { padding: 6px 8px 6px 14px; }
+#mxj-root .mxj-group-flat .mxj-switch-name { font-size: 16px; font-weight: 700; }
+#mxj-root .mxj-danger {
+    display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 6px 8px 14px;
+    border: 2px dashed var(--mxj-red); border-radius: 12px; font-size: 13px; color: var(--mxj-red);
+}
+#mxj-root .mxj-danger-btn {
+    min-height: 44px; margin: 0; padding: 0 12px; border: 0; background: transparent; box-shadow: none;
+    color: var(--mxj-red); font-size: 15px; font-weight: 700; white-space: nowrap; cursor: pointer;
+}
+#mxj-root[data-theme="pixel"] .mxj-group-sum { color: #547989; }
+#mxj-root[data-theme="pixel"] .mxj-group-head svg { stroke: #27677D; }
+#mxj-root[data-theme="pixel"] .mxj-group-body { border-top-color: #A5D5C5; }
+#mxj-root[data-theme="pixel"] .mxj-danger { border-color: #E7A08F; border-radius: 0; color: #FFE3D8; }
+#mxj-root[data-theme="pixel"] .mxj-danger-btn { color: #FFC2B2; }
+#mxj-root[data-theme="storybook"] .mxj-danger { border-radius: 18px; }

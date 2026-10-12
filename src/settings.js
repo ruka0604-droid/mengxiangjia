@@ -1,5 +1,5 @@
 // 梦想家 · 设置与存档（存在酒馆的扩展设置里，换设备也在）
-import { ctx, clamp } from './util.js?mxj=0.6.0';
+import { ctx, clamp } from './util.js?mxj=0.6.1';
 
 export const MODULE_NAME = 'mengxiangjia';
 
@@ -80,8 +80,10 @@ export function updateSettings(patch) {
         const known = s.imageConnections[patch.imageBaseUrl];
         const host = v => { try { return new URL(String(v).trim()).host.toLowerCase(); } catch { return ''; } };
         const sameSite = host(patch.imageBaseUrl) && host(patch.imageBaseUrl) === host(s.imageBaseUrl);
-        patch.imageKey = patch.imageKey ?? known?.key ?? (sameSite ? s.imageKey : '') ?? '';
-        patch.imageModel = patch.imageModel ?? known?.model ?? (sameSite ? s.imageModel : '') ?? '';
+        // 原来没填地址时（先填了 Key 和模型再填地址），填的东西都留着
+        const keep = sameSite || !s.imageBaseUrl;
+        patch.imageKey = patch.imageKey ?? known?.key ?? (keep ? s.imageKey : '') ?? '';
+        patch.imageModel = patch.imageModel ?? known?.model ?? (keep ? s.imageModel : '') ?? '';
     }
     Object.assign(s, patch);
     // 选了酒馆连接配置时，不再保留手动填写的 Key
