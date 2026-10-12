@@ -1,12 +1,16 @@
 {
     "display_name": "梦想家",
     "loading_order": 120,
-    "js": "index.js?mxj=0.5.6",
-    "css": "style.css?mxj=0.5.6",
+    "js": "index.js?mxj=0.5.7",
+    "css": "style.css?mxj=0.5.7",
     "author": "Toto",
-    "version": "0.5.6",
+    "version": "0.5.7",
     "homePage": "https://github.com/ruka0604-droid/mengxiangjia",
     "auto_update": true,
     "minimum_client_version": "1.13.0",
-    "description": "梦想家：按角色人设盖一个你们共同的家，一起布置；他会回家、和你互动、回小纸条、写交换日记。"
+    "description": "梦想家：按角色人设盖一个你们共同的家，一起布置；他会回家、和你互动、回小纸条、写交换日记。",
+    "hooks": {
+        "enable": "onEnable",
+        "disable": "onDisable"
+    }
 }

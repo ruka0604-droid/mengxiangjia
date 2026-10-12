@@ -1,5 +1,5 @@
 // 梦想家 · 设置与存档（存在酒馆的扩展设置里，换设备也在）
-import { ctx, clamp } from './util.js?mxj=0.5.6';
+import { ctx, clamp } from './util.js?mxj=0.5.7';
 
 export const MODULE_NAME = 'mengxiangjia';
 
@@ -17,6 +17,7 @@ const DEFAULTS = Object.freeze({
     independentApiBaseUrl: '',
     independentApiKey: '',
     independentApiModel: '',
+    independentModelCache: null,
     independentApiTemperature: 0.9,
     independentApiMaxTokens: 4096,
     // 读哪些上下文
@@ -75,8 +76,12 @@ export function updateSettings(patch) {
     if (patch.imageBaseUrl !== undefined && String(patch.imageBaseUrl).trim() !== s.imageBaseUrl) {
         if (s.imageBaseUrl) s.imageConnections[s.imageBaseUrl] = {key:s.imageKey,model:s.imageModel};
         patch = {...patch, imageBaseUrl:String(patch.imageBaseUrl).trim()};
+        // 换到记过的地址就取回那边的 Key 和模型；同一个网站只是改了路径或错字，就沿用现在填的；换到别的网站则清空，免得把旧 Key 发给别人。
         const known = s.imageConnections[patch.imageBaseUrl];
-        patch.imageKey = patch.imageKey ?? known?.key ?? ''; patch.imageModel = patch.imageModel ?? known?.model ?? '';
+        const host = v => { try { return new URL(String(v).trim()).host.toLowerCase(); } catch { return ''; } };
+        const sameSite = host(patch.imageBaseUrl) && host(patch.imageBaseUrl) === host(s.imageBaseUrl);
+        patch.imageKey = patch.imageKey ?? known?.key ?? (sameSite ? s.imageKey : '') ?? '';
+        patch.imageModel = patch.imageModel ?? known?.model ?? (sameSite ? s.imageModel : '') ?? '';
     }
     Object.assign(s, patch);
     // 选了酒馆连接配置时，不再保留手动填写的 Key
@@ -106,7 +111,26 @@ export function getHome(char) {
     const key = characterKey(char);
     if (!key) return null;
     const s = getSettings();
-    return s.homes[key] || null;
+    const home = s.homes[key] || null;
+    if (home) migrateHome(home);
+    return home;
+}
+
+// 旧存档整理：0.5.6 移除房间时家具存进了 furnitureStorage，仓库读的是 storage，这里合并过去。
+function migrateHome(home) {
+    const house = home.house;
+    if (!house) return;
+    if (Array.isArray(house.furnitureStorage) && house.furnitureStorage.length) {
+        house.storage = Array.isArray(house.storage) ? house.storage : [];
+        const ids = new Set(house.storage.map(x => x?.id));
+        for (const item of house.furnitureStorage) {
+            if (!item || ids.has(item.id)) continue;
+            const { room, x, z, ...rest } = item;
+            house.storage.push({ ...rest, previousRoom: rest.previousRoom || room || '' });
+        }
+        delete house.furnitureStorage;
+        save();
+    }
 }
 
 export function setHome(char, home) {

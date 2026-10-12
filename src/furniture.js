@@ -1,6 +1,6 @@
 // 梦想家 · 家具图库与房间绘制
 // 房间是正面剖面图：viewBox 360×300，墙 0–210，地板 210–300。
-import { esc, shade, hexOr, luminance } from './util.js?mxj=0.5.6';
+import { esc, shade, hexOr, luminance } from './util.js?mxj=0.5.7';
 
 export const SCENE_W = 360;
 export const SCENE_H = 300;
@@ -357,6 +357,19 @@ function layoutLayer(items) {
     return sorted;
 }
 
+// 家具图片放在哪个框里：挂墙的按各自在墙上的位置，地毯贴着地面，落地的从顶到地面。
+const WALL_ART_BOX = { window: [28, 140], painting: [54, 108], clock: [48, 92], wallshelf: [90, 124], photo: [52, 100], mirror: [48, 124], stringlights: [24, 60] };
+function artBox(type, drawn) {
+    const layer = CATALOG[type].layer;
+    if (layer === 'wall') {
+        const [top, bottom] = WALL_ART_BOX[type] || [28, 140];
+        return { top, height: bottom - top, align: 'xMidYMid' };
+    }
+    if (layer === 'rug') return { top: FRONT_BASE - 32, height: 48, align: 'xMidYMid' };
+    const base = layer === 'back' ? BACK_BASE : FRONT_BASE;
+    return { top: drawn.top, height: Math.max(24, base - drawn.top), align: 'xMidYMax' };
+}
+
 export const SCALES = [0.8, 1, 1.25];
 export const SNAP = 2.5; // 网格吸附：每格 2.5%
 
@@ -405,8 +418,10 @@ export function renderRoom(room, furniture, palette, { night = false, selectedId
         svg += `<line x1="0" y1="${y}" x2="${SCENE_W}" y2="${y}" stroke="${shade(floorShade, -0.15)}" stroke-width="1" opacity="0.6"/>`;
     }
     svg += rect(0, WALL_BOTTOM - 6, SCENE_W, 8, pal.trim);
-    // Legacy whole-room art remains saved, but is not painted over editable wall/floor layers.
-    // Room appearance is built from independent surfaces and furniture assets.
+    // 画好并保存的房间背景铺在墙和地板上；在布置页可以切回纯色墙地（useArt=false）。
+    if (room?.art?.path && room.useArt !== false) {
+        svg += `<image href="${esc(room.art.path)}" x="0" y="0" width="${SCENE_W}" height="${SCENE_H}" preserveAspectRatio="xMidYMid slice"/>`;
+    }
     if (decorating) {
         for (let p = 5; p < 100; p += 5) {
             const x = (p / 100 * SCENE_W).toFixed(1);
@@ -456,8 +471,8 @@ export function renderRoom(room, furniture, palette, { night = false, selectedId
             let drawn = DRAW[it.type](it._x, color, pal, { night });
             if (it.art?.path) {
                 const w = CATALOG[it.type].w;
-                const height = Math.max(24, pivotY(CATALOG[it.type].layer) - drawn.top);
-                drawn = {...drawn, svg: `<image href="${esc(it.art.path)}" x="${it._x-w/2}" y="${drawn.top}" width="${w}" height="${height}" preserveAspectRatio="xMidYMax meet"/>`};
+                const box = artBox(it.type, drawn);
+                drawn = { ...drawn, top: box.top, svg: `<image href="${esc(it.art.path)}" x="${(it._x - w / 2).toFixed(1)}" y="${box.top}" width="${w}" height="${box.height}" preserveAspectRatio="${box.align} meet"/>` };
             }
             const scale = itemScale(it);
             const flip = it.flip ? -1 : 1;

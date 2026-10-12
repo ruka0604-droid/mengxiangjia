@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.5.6';
-import { getSettings } from './settings.js?mxj=0.5.6';
+import { ctx, clip } from './util.js?mxj=0.5.7';
+import { getSettings } from './settings.js?mxj=0.5.7';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -64,28 +64,47 @@ export async function characterWorldBookText(char, budget = 5000) {
             rows.push(title ? `【${title}】${content}` : content);
         }
     };
-    try {
-        const embedded = char?.data?.character_book ?? char?.character_book;
-        const linkedName = String(char?.data?.extensions?.world || '').trim();
-        if (embedded) pushEntries(embedded);
-        if (linkedName) {
-            const controller = new AbortController();
-            const timer = setTimeout(() => controller.abort(), 15000);
-            try {
-                const response = await fetch('/api/worldinfo/get', {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: await requestHeaders(),
-                    body: JSON.stringify({ name: linkedName }),
-                    signal: controller.signal,
-                });
-                if (response.ok) pushEntries(await response.json());
-            } finally {
-                clearTimeout(timer);
+    // 绑定了世界书就读绑定的那本（最新、开关状态也准）；读不到才用卡里内嵌的。
+    // 酒馆保存角色时会把绑定的世界书复制一份进卡里，两份都读会重复，还会把已关掉的条目读进来。
+    const embedded = char?.data?.character_book ?? char?.character_book;
+    const linkedName = String(char?.data?.extensions?.world || '').trim();
+    let linkedOk = false;
+    if (linkedName) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        try {
+            const response = await fetch('/api/worldinfo/get', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: await requestHeaders(),
+                body: JSON.stringify({ name: linkedName }),
+                signal: controller.signal,
+            });
+            if (response.ok) {
+                const book = await response.json();
+                const entries = book?.entries;
+                if (entries && Object.keys(entries).length) {
+                    pushEntries(book);
+                    linkedOk = true;
+                }
             }
+        } catch (error) {
+            console.debug('[梦想家] 读取绑定世界书失败，改用卡内嵌的世界书', error);
+        } finally {
+            clearTimeout(timer);
         }
-    } catch (error) {
-        console.debug('[梦想家] 读取绑定世界书失败，仍使用已读取的内嵌内容', error);
+    }
+    if (!linkedOk && embedded) {
+        try {
+            pushEntries(embedded);
+        } catch (error) {
+            console.debug('[梦想家] 读取内嵌世界书失败，跳过', error);
+        }
+    }
+    const seen = new Set();
+    for (let i = rows.length - 1; i >= 0; i--) {
+        if (seen.has(rows[i])) rows.splice(i, 1);
+        else seen.add(rows[i]);
     }
     let out = '';
     for (const row of rows) {

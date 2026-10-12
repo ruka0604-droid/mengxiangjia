@@ -460,7 +460,6 @@
 #mxj-root .mxj-places.is-two .mxj-place { min-height: 44px; font-size: 14px; }
 #mxj-root .mxj-card.is-dim h3 { color: var(--mxj-muted); }
 
-/* 扩展设置抽屉里的副 API 设置（用酒馆自己的样式） */
 
 /* 三主题基础层，字体全部使用系统字体。 */
 #mxj-root[data-theme="scrapbook"] {
@@ -566,7 +565,7 @@
 
 /* 浮窗在酒馆页面上独立显示；默认关闭，不占扩展管理页。 */
 #mxj-floating-entry {
- position:fixed !important; z-index:10001; width:56px !important; height:56px !important;
+ position:fixed !important; z-index:9000; width:56px !important; height:56px !important;
  min-width:56px !important; min-height:56px !important; padding:0 !important; margin:0 !important;
  display:flex; align-items:center; justify-content:center; overflow:visible;
  border:1px solid #BEA477 !important; border-radius:50% !important; background:rgba(255,245,221,.96) !important;
@@ -593,3 +592,54 @@
 #mxj-root[data-theme="pixel"] .mxj-notebook,#mxj-root[data-theme="pixel"] .mxj-diary-page {border-color:#579EB5;background:#FFF1D8}
 #mxj-root[data-theme="pixel"] .mxj-tile,#mxj-root[data-theme="pixel"] .mxj-tab,#mxj-root[data-theme="pixel"] .mxj-tool {border-color:#579EB5;background:#FFF1D8}
 @media (pointer:coarse) {#mxj-root .mxj-tool,#mxj-root .mxj-chip,#mxj-root .mxj-tab {min-height:44px} #mxj-root .mxj-btn {min-height:44px}}
+
+/* 0.5.7 · 副 API 模型列表框：PC、手机浏览器、TT 同一套，长列表只在框里滚动 */
+#mxj-root .mxj-wrap { flex-wrap: wrap; }
+#mxj-root .mxj-model-box { gap: 8px; }
+#mxj-root .mxj-model-list {
+    display: flex; flex-direction: column;
+    max-height: min(280px, 42vh); max-height: min(280px, calc(var(--mxj-vh, 100dvh) * 0.42));
+    overflow-y: auto; overflow-x: hidden;
+    -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
+    border: 1px solid var(--mxj-line); border-radius: 12px; background: var(--mxj-white);
+}
+#mxj-root .mxj-model-item {
+    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    width: 100%; min-height: 44px; margin: 0; padding: 8px 12px;
+    border: 0; border-bottom: 1px solid var(--mxj-line-soft); border-radius: 0;
+    background: transparent; color: var(--mxj-ink); box-shadow: none;
+    font-size: 14px; line-height: 1.35; text-align: left; cursor: pointer;
+    white-space: normal; word-break: break-all; touch-action: manipulation;
+}
+#mxj-root .mxj-model-item:last-child { border-bottom: 0; }
+#mxj-root .mxj-model-item[hidden] { display: none; }
+#mxj-root .mxj-model-item span { flex: 1; min-width: 0; }
+#mxj-root .mxj-model-item i { font-style: normal; font-weight: 700; color: var(--mxj-green); flex: none; }
+#mxj-root .mxj-model-item.is-on { background: var(--mxj-green-soft); font-weight: 600; }
+#mxj-root .mxj-model-item:focus-visible { outline: 2px solid var(--mxj-green); outline-offset: -2px; }
+#mxj-root .mxj-model-empty[hidden] { display: none; }
+#mxj-root[data-theme="pixel"] .mxj-model-list { border: 2px solid #579EB5; border-radius: 0; background: #FFF8E9; }
+#mxj-root[data-theme="pixel"] .mxj-model-item { color: #214B5D; }
+#mxj-root[data-theme="scrapbook"] .mxj-model-list { border-style: dashed; border-radius: 4px; background: #FFF9EA; }
+#mxj-root[data-theme="storybook"] .mxj-model-list { border-radius: 8px 16px; background: #FFFAF3; }
+
+/* 扩建与搬家的折叠栏 */
+#mxj-root .mxj-expand { background: var(--mxj-paper); border-radius: 16px; padding: 4px 14px 14px; display: block; }
+#mxj-root .mxj-expand > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--mxj-ink); list-style-position: inside; }
+#mxj-root .mxj-expand[open] > summary { margin-bottom: 6px; }
+#mxj-root .mxj-expand > * + * { margin-top: 8px; }
+
+/* 面板内的确认框（TT 里系统弹窗不可靠） */
+#mxj-root .mxj-confirm {
+    position: absolute; inset: 0; z-index: 20;
+    display: flex; align-items: center; justify-content: center; padding: 20px;
+    background: rgba(18, 24, 21, .45);
+}
+#mxj-root .mxj-confirm-card {
+    width: 100%; max-width: 360px; background: var(--mxj-paper); color: var(--mxj-ink);
+    border-radius: 16px; padding: 18px 16px 14px; display: flex; flex-direction: column; gap: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+}
+#mxj-root .mxj-confirm-card p { font-size: 15px; line-height: 1.6; }
+#mxj-root .mxj-btn.is-danger-solid { background: var(--mxj-red); border-color: var(--mxj-red); color: #FFFFFF; }
+#mxj-root .mxj-look-preview.is-art { display: block; }

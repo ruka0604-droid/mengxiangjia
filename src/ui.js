@@ -1,22 +1,22 @@
-import { refreshFloating } from './floating.js?mxj=0.5.6';
-import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.6';
-import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.6';
-import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.6';
+import { refreshFloating } from './floating.js?mxj=0.5.7';
+import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.7';
+import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.7';
+import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.7';
 // 梦想家 · 界面
-import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.6';
-import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.6';
-import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.6';
-import { characterView, avatarUrl } from './character.js?mxj=0.5.6';
-import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.6';
+import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.7';
+import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.7';
+import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.7';
+import { characterView, avatarUrl } from './character.js?mxj=0.5.7';
+import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.7';
 import {
     HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse, NOTE_KINDS, NOTE_PLACES,
     designHouse, createHome, comeHome, respond, postNote, replyToNote, writeCharNote,
     markCharNotesRead, unreadFromChar, shouldAutoVisit, isAway,
     getLook, setLook, generateLook,
     WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary, shouldAutoDiary,
-} from './home.js?mxj=0.5.6';
-import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.6';
-import { createDecorator } from './decorate.js?mxj=0.5.6';
+} from './home.js?mxj=0.5.7';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.5.7';
+import { createDecorator } from './decorate.js?mxj=0.5.7';
 
 const ROOT_ID = 'mxj-root';
 
@@ -46,6 +46,8 @@ const state = {
     models: [],
     changelog: null,
     roomExtra: '',
+    expandOpen: false,
+    modelFilter: '',
     diaryDraft: { weather: '晴', text: '', quote: null, picking: false },
     diaryAll: false,
     artDraft: null,
@@ -82,9 +84,14 @@ function ensureRoot() {
     root.addEventListener('keydown', onKeydown);
     root.addEventListener('change', onChange);
     root.addEventListener('input', onInput);
+    root.addEventListener('toggle', event => {
+        if (event.target?.classList?.contains('mxj-expand')) state.expandOpen = event.target.open;
+    }, true);
     root.addEventListener('cancel', event => {
         event.preventDefault();
-        close();
+        // 按返回键或 Esc：有确认框就只关确认框
+        if (root.querySelector('.mxj-confirm')) dismissConfirm();
+        else close();
     });
     document.body.append(root);
     return root;
@@ -139,10 +146,11 @@ export function open() {
 export function close() {
     if (!root) return;
     if (state.view === 'decorate') {
-        const c = currentCharacter();
-        if (c) decorator.leave(c);
+        decorator.commit();
+        state.view = 'home';
     }
     state.abort?.abort();
+    dismissConfirm();
     if (root.open && typeof root.close === 'function') root.close();
     root.removeAttribute('open');
     root.hidden = true;
@@ -158,6 +166,72 @@ export function destroy() {
     close();
     root?.remove();
     root = null;
+    document.removeEventListener('submit', onSubmit, true);
+}
+
+// 禁用后重新启用时，把表单监听装回来
+export function revive() {
+    document.removeEventListener('submit', onSubmit, true);
+    document.addEventListener('submit', onSubmit, true);
+}
+
+// ---------------- 面板内确认框 ----------------
+// TT（iOS WebView）里系统的 confirm 弹窗不一定能弹出来，这里在面板里自己画一个。
+let confirmDone = null;
+function dismissConfirm() {
+    if (confirmDone) confirmDone(false);
+    root?.querySelector('.mxj-confirm')?.remove();
+}
+
+function askConfirm(text, { yes = '确定', no = '取消', danger = false } = {}) {
+    return new Promise(resolve => {
+        if (!root) return resolve(false);
+        dismissConfirm();
+        const box = document.createElement('div');
+        box.className = 'mxj-confirm';
+        box.setAttribute('role', 'alertdialog');
+        box.setAttribute('aria-modal', 'true');
+        box.innerHTML = `<div class="mxj-confirm-card"><p>${esc(text)}</p><div class="mxj-row">
+            <button type="button" class="mxj-btn mxj-grow" data-confirm="no">${esc(no)}</button>
+            <button type="button" class="mxj-btn mxj-grow ${danger ? 'is-danger-solid' : 'is-primary'}" data-confirm="yes">${esc(yes)}</button></div></div>`;
+        const done = value => {
+            if (confirmDone !== done) return;
+            confirmDone = null;
+            box.remove();
+            resolve(value);
+        };
+        confirmDone = done;
+        box.addEventListener('click', event => {
+            event.stopPropagation();
+            const b = event.target.closest('[data-confirm]');
+            if (b) done(b.dataset.confirm === 'yes');
+            else if (event.target === box) done(false);
+        });
+        root.querySelector('.mxj-window').append(box);
+        // 危险操作默认把焦点放在「取消」上，免得一按回车就删
+        box.querySelector(danger ? '[data-confirm="no"]' : '[data-confirm="yes"]').focus({ preventScroll: true });
+    });
+}
+
+// 扩建、搬家、加减房间：出错时在面板上说清楚原因，保持滚动位置和展开状态
+function roomAction(char, fn, okText) {
+    // 确认框弹着的时候可能切了聊天或开始了生成，这时不再动这个家
+    if (!char || characterKey(currentCharacter()) !== characterKey(char)) return;
+    if (state.busy) {
+        flash('正在生成，等这次结束再改房间');
+        return;
+    }
+    try {
+        fn();
+        state.error = '';
+        state.keepScroll = true;
+        render();
+        if (okText) flash(okText);
+    } catch (error) {
+        state.error = error?.message || String(error);
+        state.keepScroll = true;
+        render();
+    }
 }
 
 // ---------------- 渲染 ----------------
@@ -184,6 +258,12 @@ function render() {
     main.innerHTML = (views[state.view] || viewHome)(char, home);
     if (state.view === 'decorate' && char) decorator.attach(char);
     main.scrollTop = state.keepScroll ? scrollTop : 0;
+    if (state.view === 'settings') {
+        // 列表很长时，把选中的模型滚到列表里看得见的位置（只滚列表本身，不动整页）
+        const list = main.querySelector('.mxj-model-list');
+        const on = list?.querySelector('.mxj-model-item.is-on');
+        if (list && on) list.scrollTop = Math.max(0, on.offsetTop - list.offsetTop - list.clientHeight / 2 + on.offsetHeight / 2);
+    }
     state.keepScroll = false;
     if (state.view === 'notes' && char && home) markCharNotesRead(char);
     if (state.view === 'diary' && char && home) markDiaryRead(char);
@@ -253,7 +333,7 @@ function viewHome(char, home) {
     const showFigure = !awayNow && presence0.atHome !== false && (!spotItem || spotItem.room === roomId);
     const look = getLook(home, char);
     const pose = poseFor({ spotType: spotItem?.type || '', activity: presence0.activity, night });
-    const figure = showFigure && !home.art?.path && (home.v || 1) < 2
+    const figure = showFigure && !home.art?.path
         ? (anchors) => spriteInRoom(look, pose, spotItem ? anchors[spotItem.id] : null, SCENE_H, { theme: homeTheme(home), mood: home.presence?.mood, label: `${characterView(char).name}（点一下看他的样子）` })
         : null;
     const { svg } = renderRoom(room, furniture, house.palette, { night, selectedId: state.selectedFurniture, figure });
@@ -282,7 +362,7 @@ function viewHome(char, home) {
       </div>
       <div class="mxj-row"><button type="button" class="mxj-btn mxj-grow" data-act="go" data-view="art">绘制人物、房间与家具</button></div>
       ${getSettings().visitMode === 'manual' && !away ? '<p class="mxj-muted">当前为手动回家模式；他已在家。下次离家后可点击「等他回家」。</p>' : ''}
-      <details class="mxj-expand"><summary>扩建与搬家 · 房间模块</summary>
+      <details class="mxj-expand"${state.expandOpen ? ' open' : ''}><summary>扩建与搬家 · 房间模块</summary>
         <p class="mxj-muted">只增加房间数据，不会生成新房屋图片。原有家具、记录和装修保留。</p>
         <div class="mxj-chips is-wrap">${HOUSE_SIZES.filter(z=>z.maxRooms>HOUSE_SIZES.find(h=>h.id===house.size).maxRooms).map(z=>`<button type="button" class="mxj-chip" data-act="upgrade" data-id="${z.id}">搬到${esc(z.name)}</button>`).join('')}</div>
         <p class="mxj-muted">当前 ${house.rooms.length} / ${HOUSE_SIZES.find(h=>h.id===house.size)?.maxRooms||8} 个模块 · 删除房间前会确认，家具移入仓库</p>
@@ -291,7 +371,7 @@ function viewHome(char, home) {
         <label class="mxj-field"><span>补充房间（例如：三个卧室、一个阳光房）</span><input class="mxj-input" data-field="roomExtra" placeholder="描述想增加的房间" value="${esc(state.roomExtra||'')}"></label>
         <button type="button" class="mxj-btn" data-act="add-room-text">按描述添加房间</button>
       </details>
-      ${home.v >= 2 && !room.art?.path ? '<p class="mxj-muted">当前为布局草图。到绘制页生成并保存房间与家具，才能显示所选画风的图片。</p>' : ''}
+      ${home.v >= 2 && !room.art?.path ? '<p class="mxj-muted">当前为布局草图。到绘制页生成并保存房间背景和家具，房间里就会换成所选画风的图片。</p>' : ''}
       ${state.selectedFurniture ? furnitureCard(home, away) : eventCard(char, home, away)}
       <nav class="mxj-entries" aria-label="小屋功能">
         <button type="button" class="mxj-entry" data-act="decorate">${ICON.sofa}<span>布置</span></button>
@@ -373,8 +453,21 @@ function viewBuild(char, home) {
       <button type="button" class="mxj-size${d.size === z.id ? ' is-on' : ''}" data-act="size" data-id="${z.id}" aria-pressed="${d.size === z.id}">
         <b>${esc(z.name)}</b><span>${esc(z.sub)}</span>
       </button>`).join('');
-    const showing = d.proposal || (home?.house && !d.proposal ? home.house : null);
-    const isCurrent = showing && !d.proposal;
+    if (home?.house) {
+        return `
+      <section class="mxj-card">${themes}</section>
+      ${proposalCard(home.house, true)}
+      <section class="mxj-card">
+        <h3>想换个样子？</h3>
+        <p class="mxj-muted">已经住进来的家不会被整个重新设计掉。想加房间、搬到更大的房子，在小屋首页点「扩建与搬家」；想换家具和墙地颜色，用「布置」。</p>
+        <div class="mxj-row">
+          <button type="button" class="mxj-btn mxj-grow" data-act="open-expand">扩建与搬家</button>
+          <button type="button" class="mxj-btn mxj-grow" data-act="decorate">去布置</button>
+        </div>
+      </section>`;
+    }
+    const showing = d.proposal || null;
+    const isCurrent = false;
     return `
       <section class="mxj-card">${themes}</section>
       ${showing ? proposalCard(showing, isCurrent) : ''}
@@ -394,7 +487,6 @@ function viewBuild(char, home) {
           <input type="checkbox" data-field="emptyWall" ${d.emptyWall ? 'checked' : ''}>
         </label>
       </section>
-      ${home?.house ? '<p class="mxj-muted mxj-pad">换房子只会换掉房子本身，纸条和回家记录都会留着。</p>' : ''}
       <div class="mxj-row">
         <button type="button" class="mxj-btn is-primary mxj-grow" data-act="design" ${state.busy ? 'disabled' : ''}>${showing ? '按人设重新设计' : '开始设计'}</button>
       </div>`;
@@ -442,7 +534,7 @@ function noteCard(n, home, name) {
       <div class="mxj-note-meta"><span class="mxj-note-kind">${esc(n.kind)}</span><span>${esc(from)} · ${esc(n.place)} · ${esc(formatTime(n.at))}${isNew ? ' · 新' : ''}</span></div>
       ${replyTo}
       <div class="mxj-note-text">${esc(n.text)}</div>
-      <div class="mxj-row mxj-between">${status || '<span></span>'}${n.from === 'char' ? `<button type="button" class="mxj-link-btn" data-act="reply-note" data-kind="${esc(n.kind)}">回他一张</button>` : ''}</div>
+      <div class="mxj-row mxj-between">${status || '<span></span>'}${n.from === 'char' ? `<button type="button" class="mxj-link-btn" data-act="reply-note" data-kind="${esc(n.kind)}">回他一张</button>` : (!n.replyId ? `<button type="button" class="mxj-link-btn" data-act="note-reply" data-id="${esc(n.id)}" ${state.busy ? 'disabled' : ''}>请他现在回</button>` : '')}</div>
     </article>`;
 }
 
@@ -499,11 +591,13 @@ function viewLook(char, home) {
     const colors = (key, label) => `<div class="mxj-field"><span>${label}</span><div class="mxj-colors">${LOOK_COLORS[key].map(c => `<button type="button" class="mxj-color${c.toLowerCase() === String(look[key]).toLowerCase() ? ' is-on' : ''}" style="background:${c}" data-act="look-color" data-key="${key}" data-color="${c}" aria-label="${label}换成这个颜色" aria-pressed="${c.toLowerCase() === String(look[key]).toLowerCase()}"></button>`).join('')}</div></div>`;
     return `
       <section class="mxj-card">
-        <h3>${esc(themeName(homeTheme(home)))} · 风格已固定</h3><label class="mxj-field"><span>确认的外貌（可手动修改，修改后可重新绘制人物）</span><textarea class="mxj-input" data-field="appearance" rows="4">${esc(home.appearance || "")}</textarea></label><p class="mxj-muted">当前表情：${esc(moodFace(home.presence?.mood, homeTheme(home)))}，根据回家时的心情显示。</p><div class="mxj-look-preview">${home.art?.path ? `<img class="mxj-art-preview" src="${esc(home.art.path)}" alt="已保存的角色形象">` : (home.v || 1) < 2 ? preview : "尚未生成角色图片"}</div><button type="button" class="mxj-btn is-primary" data-act="go" data-view="art">${home.art?.path?'重新生成形象（额外消耗生图请求）':'按确认外貌绘制人物（首次一次）'}</button>
+        <h3>${esc(themeName(homeTheme(home)))} · 风格已固定</h3><label class="mxj-field"><span>确认的外貌（可手动修改，修改后可重新绘制人物）</span><textarea class="mxj-input" data-field="appearance" rows="4">${esc(home.appearance || "")}</textarea></label><p class="mxj-muted">当前表情：${esc(moodFace(home.presence?.mood, homeTheme(home)))}，根据回家时的心情显示。</p><div class="mxj-look-preview${home.art?.path ? ' is-art' : ''}">${home.art?.path ? `<img class="mxj-art-preview" src="${esc(home.art.path)}" alt="已保存的角色形象">` : preview}</div><button type="button" class="mxj-btn is-primary" data-act="go" data-view="art">${home.art?.path?'重新生成形象（额外消耗生图请求）':'按确认外貌绘制人物（首次一次）'}</button>
         <p class="mxj-muted">确认的描述用于绘制人物。已保存的立绘暂不生成动作动画，心情通过表情显示。</p>
         <button type="button" class="mxj-btn" data-act="look-gen" ${state.busy ? 'disabled' : ''}>重新提取基础外貌数据</button>
       </section>
+      ${home.art?.path ? '<p class="mxj-muted mxj-pad">房间里显示的是画好的人物图片。想换样子，改上面的外貌描述后重新绘制。</p>' : `
       <section class="mxj-card">
+        <p class="mxj-muted">还没有画人物图片时，房间里用这个小人代替，下面改了马上能看到。</p>
         <h3>发型</h3>
         <div class="mxj-chips is-wrap">${chips(HAIR_STYLES, look.hairStyle, 'look-style')}</div>
         <h3>配饰</h3>
@@ -514,7 +608,7 @@ function viewLook(char, home) {
         ${colors('eyes', '瞳色')}
         ${colors('skin', '肤色')}
         ${colors('outfit', '衣服')}
-      </section>`;
+      </section>`}`;
 }
 
 function recentChatForQuote() {
@@ -591,10 +685,8 @@ function viewSettings(char, home) {
     const profileOptions = [`<option value="">不用连接配置（手动填写接口）</option>`]
         .concat(profiles.map(p => `<option value="${esc(p.id)}" ${p.id === s.independentConnectionProfileId ? 'selected' : ''}>${esc(p.name)}</option>`))
         .join('');
-    const modelOptions = state.models.length
-        ? `<select class="mxj-input" data-field="modelSelect"><option value="">从列表里选一个</option>${state.models.map(m => `<option value="${esc(m)}" ${m === s.independentApiModel ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select>`
-        : '';
     const usingProfile = !!s.independentConnectionProfileId;
+    const modelBox = modelListBox(s);
     return `
       <section class="mxj-card">
         <h3>小浮窗入口</h3>
@@ -622,10 +714,9 @@ function viewSettings(char, home) {
         </label>
         <label class="mxj-field"><span>API Key</span>
           <input type="password" class="mxj-input" data-field="independentApiKey" value="${esc(s.independentApiKey)}" autocomplete="off" placeholder="API Key">
-        </label>
-        <button type="button" class="mxj-btn" data-act="fetch-models" ${state.busy ? 'disabled' : ''}>拉取模型列表</button>`}
-        <label class="mxj-field"><span>模型 ID${usingProfile ? '（空着就用连接配置里的模型）' : ''}</span>
-          ${modelOptions}
+        </label>`}
+        ${modelBox}
+        <label class="mxj-field"><span>模型 ID（可以从上面的列表点选，也可以直接填）${usingProfile ? '，空着就用连接配置里的模型' : ''}</span>
           <input type="text" class="mxj-input" data-field="independentApiModel" value="${esc(s.independentApiModel)}" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="模型 ID">
         </label>
         <div class="mxj-two">
@@ -652,6 +743,49 @@ function viewSettings(char, home) {
         <p class="mxj-muted">删除${esc(characterView(char).name)}的家，连同纸条和回家记录。删除后不能恢复。</p>
         <button type="button" class="mxj-btn is-danger" data-act="demolish">拆掉这个家</button>
       </section>` : ''}`;
+}
+
+// ---------- 副 API 的模型列表框 ----------
+function modelSourceKey(s) {
+    return s.independentConnectionProfileId ? `profile:${s.independentConnectionProfileId}` : `manual:${String(s.independentApiBaseUrl || '').trim()}`;
+}
+
+function modelListBox(s) {
+    const cache = s.independentModelCache;
+    const models = cache && cache.key === modelSourceKey(s) && Array.isArray(cache.models) ? cache.models : [];
+    const current = String(s.independentApiModel || '');
+    const q = String(state.modelFilter || '').trim().toLowerCase();
+    const items = models.map(m => {
+        const on = m === current;
+        const hidden = q && !m.toLowerCase().includes(q) ? ' hidden' : '';
+        return `<button type="button" role="option" aria-selected="${on}" class="mxj-model-item${on ? ' is-on' : ''}" data-act="pick-model" data-id="${esc(m)}"${hidden}><span>${esc(m)}</span>${on ? '<i aria-hidden="true">✓</i>' : ''}</button>`;
+    }).join('');
+    return `<div class="mxj-field mxj-model-box">
+      <span>模型列表</span>
+      <div class="mxj-row mxj-wrap">
+        <button type="button" class="mxj-btn mxj-grow" data-act="fetch-models" ${state.busy ? 'disabled' : ''}>${models.length ? '重新拉取模型列表' : '拉取模型列表'}</button>
+      </div>
+      ${models.length ? `
+      <label class="mxj-sr" for="mxj-model-filter">搜索模型</label>
+      <input id="mxj-model-filter" type="text" class="mxj-input" data-field="modelFilter" value="${esc(state.modelFilter || '')}" placeholder="搜索模型（共 ${models.length} 个）" autocapitalize="off" autocomplete="off" spellcheck="false" enterkeyhint="search">
+      <div class="mxj-model-list" role="listbox" aria-label="模型列表">${items}</div>
+      <p class="mxj-muted mxj-model-empty"${q && !models.some(m => m.toLowerCase().includes(q)) ? '' : ' hidden'}>没有找到包含这几个字的模型。</p>`
+        : `<p class="mxj-muted">${s.independentConnectionProfileId ? '会用选中的酒馆连接配置去拉取。' : '先填好 API 地址和 Key，'}点「拉取模型列表」，可选的模型会列在这里，点一下就选上。</p>`}
+    </div>`;
+}
+
+function filterModelList() {
+    const box = root?.querySelector('.mxj-model-box');
+    if (!box) return;
+    const q = String(state.modelFilter || '').trim().toLowerCase();
+    let shown = 0;
+    for (const item of box.querySelectorAll('.mxj-model-item')) {
+        const match = !q || String(item.dataset.id || '').toLowerCase().includes(q);
+        item.hidden = !match;
+        if (match) shown++;
+    }
+    const empty = box.querySelector('.mxj-model-empty');
+    if (empty) empty.hidden = shown > 0;
 }
 
 function imageSettingsCard() {
@@ -714,6 +848,7 @@ async function loadChangelog() {
 // ---------------- 交互 ----------------
 
 function go(view) {
+    if (state.view === 'decorate' && view !== 'decorate') decorator.commit();
     state.view = view;
     state.error = '';
     state.selectedFurniture = '';
@@ -812,30 +947,40 @@ function onClick(event) {
     switch (act) {
         case 'close': close(); break;
         case 'back':
-            if (state.view === 'decorate' && char) decorator.leave(char);
+            if (state.view === 'decorate') decorator.leave();
             else go(char && getHome(char)?.house ? 'home' : 'build');
             break;
+        case 'open-expand':
+            state.expandOpen = true;
+            go('home');
+            requestAnimationFrame(() => root?.querySelector('.mxj-expand')?.scrollIntoView({ block: 'start', behavior: 'smooth' }));
+            break;
         case 'decorate':
-            if (!char) break;
+            if (!char || !getHome(char)?.house) break;
             decorator.enter(char);
             go('decorate');
             break;
         case 'upgrade': {
             if(!char || !getHome(char)?.house || state.busy) break;
             const name=HOUSE_SIZES.find(x=>x.id===el.dataset.id)?.name;
-            if(name && window.confirm(`搬到${name}？原房间和家具将全部保留，只补充新房间。`)){upgradeHouse(char,el.dataset.id);render();flash('住宅结构已升级');}
+            if(!name) break;
+            void askConfirm(`搬到${name}？原房间和家具全部保留，只补上新房子该有的房间。`, { yes: '搬过去' }).then(ok => {
+                if (ok) roomAction(char, () => upgradeHouse(char, el.dataset.id), `搬到${name}了`);
+            });
             break;
         }
         case 'add-room': {
-            if(char && getHome(char)?.house && ROOM_MODULES[el.dataset.id]){addRoomModules(char,[el.dataset.id]);render();flash('已增加房间');}
+            if(char && getHome(char)?.house && ROOM_MODULES[el.dataset.id]) roomAction(char, () => addRoomModules(char,[el.dataset.id]), `加了一间${ROOM_MODULES[el.dataset.id]}`);
             break;
         }
         case 'add-room-text': {
             if(!char)break;
-            const value=root.querySelector('[data-field="roomExtra"]')?.value||'';
+            const value=root.querySelector('[data-field="roomExtra"]')?.value||state.roomExtra||'';
             const types=roomModulesFromText(value);
-            if(!types.length){flash('没有识别到预设房间，请使用上方按钮');break;}
-            if(window.confirm(`增加 ${types.map(t=>ROOM_MODULES[t]).join('、')}？`)){addRoomModules(char,types);state.roomExtra='';render();}
+            if(!types.length){state.error='没有认出要加的房间，可以写「两个卧室、一个书房」这样，或者直接点上面的按钮。';state.keepScroll=true;render();break;}
+            void askConfirm(`增加 ${types.map(t=>ROOM_MODULES[t]).join('、')}？`, { yes: '增加' }).then(ok => {
+                if (ok) roomAction(char, () => { addRoomModules(char,types); state.roomExtra=''; }, '房间加好了');
+            });
             break;
         }
         case 'show-layout': {
@@ -938,9 +1083,13 @@ function onClick(event) {
         }
         case 'visit': void doVisit(); break;
         case 'note-ask': if(char) void run('正在写纸条…',signal=>writeCharNote(char,{signal})); break;
+        case 'note-reply': if(char && el.dataset.id) void run('他在看你的纸条…', signal => replyToNote(char, el.dataset.id, { signal })); break;
         case 'remove-room': {
             if(!char||state.busy)break;const h=getHome(char);const r=h?.house?.rooms?.find(x=>x.id===el.dataset.id);
-            if(r&&window.confirm(`移除「${r.name}」？房间里的家具将进入仓库，不会删除纸条和日记。`)){removeRoomModule(char,r.id);render();flash('房间已移除，家具已入仓库');}
+            if(!r) break;
+            void askConfirm(`移除「${r.name}」？房间里的家具会收进仓库（布置页的「仓库」里能拿出来），纸条和日记不受影响。`, { yes: '移除', danger: true }).then(ok => {
+                if (ok) roomAction(char, () => removeRoomModule(char,r.id), '房间已移除，家具收进仓库了');
+            });
             break;
         }
         case 'option': void doRespond(el.dataset.text); break;
@@ -953,6 +1102,7 @@ function onClick(event) {
             break;
         case 'size': state.draft.size = el.dataset.id; state.keepScroll = true; render(); break;
         case 'design':
+            if (getHome(char)?.house) break;
             void run('正在按人设设计房子…', async signal => {
                 const proposal = await designHouse(char, { ...state.draft, signal });
                 if (!signal.aborted && characterKey(currentCharacter()) === characterKey(char)) state.draft.proposal = proposal;
@@ -989,12 +1139,26 @@ function onClick(event) {
         case 'refresh-profiles': state.keepScroll = true; render(); flash('已刷新连接配置'); break;
         case 'fetch-models': {
             const s = getSettings();
+            const key = modelSourceKey(s);
+            const profileId = s.independentConnectionProfileId;
             void run('正在拉取模型…', async () => {
-                state.models = await fetchManualModels(s.independentApiBaseUrl, s.independentApiKey);
-                flash(`拿到 ${state.models.length} 个模型`);
+                const list = profileId
+                    ? await fetchProfileModels(profileId)
+                    : await fetchManualModels(s.independentApiBaseUrl, s.independentApiKey);
+                updateSettings({ independentModelCache: { key, models: list, at: Date.now() } });
+                state.modelFilter = '';
+                flash(`拿到 ${list.length} 个模型，点一下就能选`);
             });
             break;
         }
+        case 'pick-model':
+            if (el.dataset.id) {
+                updateSettings({ independentApiModel: el.dataset.id });
+                state.keepScroll = true;
+                render();
+                flash(`已选择 ${el.dataset.id}`);
+            }
+            break;
         case 'test':
             void run('正在测试连接…', async () => {
                 const reply = await testConnection();
@@ -1002,10 +1166,15 @@ function onClick(event) {
             });
             break;
         case 'demolish':
-            if (globalThis.confirm?.('确定要拆掉这个家吗？纸条和回家记录也会一起删除。') !== false) {
+            if (state.busy) break;
+            void askConfirm('确定要拆掉这个家吗？纸条、日记和回家记录也会一起删除，不能恢复。', { yes: '拆掉', danger: true }).then(ok => {
+                if (!ok || state.busy) return;
+                const c = currentCharacter();
+                if (!c || characterKey(c) !== characterKey(char)) return;
                 removeHome(char);
+                state.draft = { theme: 'pixel', size: 'flat', extra: '', emptyWall: true, proposal: null };
                 go('build');
-            }
+            });
             break;
         default:
             if (act.startsWith('deco-') && char) decorator.onAct(act, el, char);
@@ -1023,6 +1192,12 @@ async function submitNote(char) {
     }
     const note = postNote(char, c);
     c.text = '';
+    if (state.busy && !c.deferred) {
+        state.keepScroll = false;
+        render();
+        flash('贴好了。他这会儿在忙，可以等一下点「请他现在回」，或者等他回家时看');
+        return;
+    }
     if (c.deferred) {
         state.keepScroll = false;
         render();
@@ -1056,6 +1231,8 @@ function onChange(event) {
         case 'extra': state.draft.extra = value; return;
         case 'noteText': state.composer.text = value; return;
         case 'diaryText': state.diaryDraft.text = value; return;
+        case 'roomExtra': state.roomExtra = value; return;
+        case 'modelFilter': state.modelFilter = value; return;
         case 'decoName': {
             const c = currentCharacter();
             if (c) decorator.rename(c, value);
@@ -1093,10 +1270,15 @@ function onInput(event) {
     if (field === 'noteText') state.composer.text = el.value;
     if (field === 'extra') state.draft.extra = el.value;
     if (field === 'diaryText') state.diaryDraft.text = el.value;
+    if (field === 'roomExtra') state.roomExtra = el.value;
+    if (field === 'modelFilter') {
+        state.modelFilter = el.value;
+        filterModelList();
+    }
 }
 
 // 表单提交（回车或发送按钮）
-document.addEventListener('submit', event => {
+function onSubmit(event) {
     const form = event.target;
     if (!root || !root.contains(form)) return;
     event.preventDefault();
@@ -1111,11 +1293,14 @@ document.addEventListener('submit', event => {
         const f = state.selectedFurniture;
         void doRespond(text, f);
     }
-}, true);
+}
+document.addEventListener('submit', onSubmit, true);
 
 // 切换聊天时，开着的面板跟着换角色
 export function onChatChanged() {
     if (!root?.open) return;
+    if (state.view === 'decorate') decorator.commit();
+    dismissConfirm();
     state.abort?.abort();
     state.artDraft = null;
     state.draft = { theme: 'pixel', size: 'flat', extra: '', emptyWall: true, proposal: null };

@@ -1,11 +1,11 @@
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.6';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.7';
 // 梦想家 · 家的数据与生成
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.6';
-import { generate } from './api.js?mxj=0.5.6';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.6';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.6';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.6';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.6';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.7';
+import { generate } from './api.js?mxj=0.5.7';
+import { gatherContext, contextBlock } from './character.js?mxj=0.5.7';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.7';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.7';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.7';
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];
@@ -30,6 +30,49 @@ const STRUCTURES = {
     large_flat:['living','bedroom','bedroom','kitchen','bathroom','dining','study','dressing','balcony'],
     villa:['living','kitchen','dining','bedroom','bedroom','bedroom','bathroom','study','dressing','terrace','yard','sunroom'],
 };
+// AI 给房间起的名字五花八门（起居室、主卧、小阳台……），按关键词认出它是哪种房间。
+const ROOM_HINTS = [
+    ['living', /客厅|起居|客餐厅|会客|大厅|堂屋/], ['sunroom', /阳光房|温室/], ['terrace', /露台|天台|屋顶/],
+    ['balcony', /阳台/], ['dining', /餐厅|饭厅/], ['kitchen', /厨/], ['bathroom', /浴|卫生间|洗手间|盥洗|淋浴/],
+    ['dressing', /衣帽|更衣|衣橱间/], ['bedroom', /卧|寝|睡房/], ['study', /书房|书斋|阅读/],
+    ['studio', /工作室|画室|琴房|录音|工坊/], ['gaming', /游戏/], ['cinema', /影音|影院|放映/],
+    ['garden', /花园|菜园|苗圃/], ['yard', /院|庭/], ['pool', /泳池|水池/], ['gym', /健身|练功|道场/],
+    ['pet', /宠物|猫|狗/], ['storage', /储藏|储物|杂物|仓/],
+];
+export function roomTypeOf(room) {
+    if (room?.type && ROOM_MODULES[room.type]) return room.type;
+    const name = String(room?.name || '');
+    const exact = Object.keys(ROOM_MODULES).find(k => ROOM_MODULES[k] === name);
+    if (exact) return exact;
+    return ROOM_HINTS.find(([, rx]) => rx.test(name))?.[0] || '';
+}
+// 补出来的房间按房间类型放几件合适的家具（厨房不放沙发）
+const ROOM_DEFAULTS = {
+    living: [['window', 70], ['sofa', 45], ['plant', 88], ['lamp', 12], ['rug', 45]],
+    bedroom: [['window', 72], ['bed', 40], ['lamp', 90], ['wardrobe', 12]],
+    kitchen: [['window', 62], ['stove', 28], ['fridge', 88], ['plant', 10]],
+    bathroom: [['mirror', 30], ['bathtub', 55], ['plant', 90]],
+    balcony: [['stringlights', 50], ['plant', 18], ['chair', 52], ['plant', 82]],
+    terrace: [['stringlights', 50], ['plant', 15], ['chair', 50], ['plant', 85]],
+    yard: [['plant', 12], ['plant', 42], ['chair', 68], ['plant', 90]],
+    garden: [['plant', 12], ['plant', 40], ['plant', 70], ['chair', 88]],
+    dining: [['window', 70], ['painting', 25], ['diningtable', 48], ['chair', 18], ['chair', 78]],
+    study: [['bookshelf', 15], ['window', 72], ['desk', 55], ['chair', 72], ['lamp', 92]],
+    dressing: [['wardrobe', 25], ['mirror', 60], ['coatrack', 85]],
+    sunroom: [['window', 28], ['window', 74], ['plant', 12], ['sofa', 50], ['plant', 90]],
+    studio: [['wallshelf', 40], ['desk', 45], ['chair', 62], ['lamp', 90]],
+    gaming: [['tv', 45], ['sofa', 45], ['cushion', 12], ['lamp', 90]],
+    cinema: [['tv', 50], ['sofa', 50], ['cushion', 88]],
+    pool: [['plant', 12], ['chair', 75], ['plant', 92]],
+    gym: [['window', 50], ['mirror', 20], ['plant', 88]],
+    pet: [['petbed', 35], ['cushion', 65], ['plant', 90]],
+    storage: [['cabinet', 30], ['wardrobe', 70]],
+};
+export function defaultFurnitureFor(room) {
+    const set = ROOM_DEFAULTS[roomTypeOf(room)] || ROOM_DEFAULTS.living;
+    return set.map(([type, x]) => ({ id: uid('f'), type, name: CATALOG[type].label, room: room.id, x, color: '', by: 'ai' }));
+}
+
 export function roomModulesFromText(text) {
     const value=String(text||''); const result=[];
     for(const [type,name] of Object.entries(ROOM_MODULES)) {
@@ -62,7 +105,7 @@ export function upgradeHouse(char,size,{extra=''}={}) {
     if(old===size)return [];
     if(houseCapacity(size)<=houseCapacity(old))throw new Error('搬家升级必须选择容量更大的住宅');
     const existing={};
-    for(const r of home.house.rooms){const t=r.type||Object.keys(ROOM_MODULES).find(k=>ROOM_MODULES[k]===r.name);if(t)existing[t]=(existing[t]||0)+1;}
+    for(const r of home.house.rooms){const t=roomTypeOf(r);if(t)existing[t]=(existing[t]||0)+1;}
     const missing=[];const seen={};
     for(const type of STRUCTURES[size]){seen[type]=(seen[type]||0)+1;if(seen[type]>(existing[type]||0))missing.push(type);}
     const requested=extra?roomModulesFromText(extra):[];
@@ -85,8 +128,8 @@ export function removeRoomModule(char,roomId) {
     const room=home.house.rooms.find(r=>r.id===roomId);if(!room)throw new Error('找不到房间');
     const furniture=home.house.furniture.filter(f=>f.room===roomId);
     home.house.furniture=home.house.furniture.filter(f=>f.room!==roomId);
-    home.house.furnitureStorage||=[];
-    home.house.furnitureStorage.push(...furniture.map(f=>({...f,previousRoom:roomId,room:''})));
+    home.house.storage=Array.isArray(home.house.storage)?home.house.storage:[];
+    home.house.storage.push(...furniture.map(({room:_room,x:_x,z:_z,...rest})=>({...rest,previousRoom:roomId})));
     home.house.rooms=home.house.rooms.filter(r=>r.id!==roomId);
     if(home.currentRoom===roomId)home.currentRoom=home.house.rooms[0].id;
     home.changes||=[];home.changes.push({at:now(),text:`移除${room.name}模块，${furniture.length}件家具转入仓库`});
@@ -107,6 +150,7 @@ function houseUserPrompt(info, size, extra, emptyWall, theme) {
 - 固定美术风格：${themeName(theme)}。家具配色与角色表现参考该风格，外貌和性格仍以人设为准。
 - 房子大小：${sizeDef.name}（${sizeDef.rooms}）
 ${extra ? `- 用户补充：${extra}\n` : ''}${emptyWall ? '- 每个房间少放一点东西，留出空位，等两人以后一起布置。\n' : ''}- 家具只能从这些类型里选（type 用英文 id）：${CATALOG_PROMPT}
+- 房间要包含：${(STRUCTURES[size] || []).map(t => ROOM_MODULES[t]).join('、') || '一个客厅'}。房间名可以起得有个性，但要看得出是哪种房间（比如「主卧」「朝南的小阳台」），不要另外重复加同一种房间。
 - 每个房间放 3 到 7 件家具；x 是家具在房间正面图里从左到右的位置，0–100。
 - 颜色用 #RRGGBB。
 - look 是他在家里出现时的 Q 版小人外形，按角色描述里的外貌来定（发型选最接近的一种）。
@@ -118,7 +162,7 @@ ${extra ? `- 用户补充：${extra}\n` : ''}${emptyWall ? '- 每个房间少放
   "name": "这个家的名字（短）",
   "story": "两三句话，用第二人称讲这个家给你的感觉和来历",
   "palette": { "wall": "#…", "floor": "#…", "accent": "#…", "trim": "#…" },
-  "rooms": [ { "id": "r1", "name": "起居室", "note": "一句话特点", "wall": "#…(可选)" } ],
+  "rooms": [ { "id": "r1", "name": "客厅", "note": "一句话特点", "wall": "#…(可选)" } ],
   "furniture": [ { "type": "sofa", "name": "墨绿旧沙发", "room": "r1", "x": 45, "color": "#…" } ]
 }`;
 }
@@ -140,17 +184,18 @@ export function normalizeHouse(parsed, raw, size) {
             name: asText(r.name, 12) || `房间 ${i + 1}`,
             note: asText(r.note, 40),
             wall: hexOr(r.wall, ''),
-        }));
+        }))
+        .map(r => ({ ...r, type: roomTypeOf(r) }));
     // 去重 id
     const seen = new Set();
     for (const r of rooms) {
         while (seen.has(r.id)) r.id = `${r.id}_`;
         seen.add(r.id);
     }
-    if (!rooms.length) rooms = [{ id: 'r1', name: '起居室', note: '', wall: '' }];
+    if (!rooms.length) rooms = [{ id: 'r1', type: 'living', name: '客厅', note: '', wall: '' }];
     // 新建住宅补足预设结构模块，不调用生图 API。
     if (STRUCTURES[size]) {
-        const counts={};for(const r of rooms){const t=r.type||Object.keys(ROOM_MODULES).find(k=>ROOM_MODULES[k]===r.name);if(t)counts[t]=(counts[t]||0)+1;}
+        const counts={};for(const r of rooms){const t=roomTypeOf(r);if(t)counts[t]=(counts[t]||0)+1;}
         const needed={};for(const type of STRUCTURES[size]){needed[type]=(needed[type]||0)+1;if((counts[type]||0)<needed[type]){rooms.push({id:uid('r'),type,name:ROOM_MODULES[type],note:'',wall:'',floor:''});counts[type]=(counts[type]||0)+1;}}
     }
     rooms=rooms.slice(0,houseCapacity(size));
@@ -175,9 +220,7 @@ export function normalizeHouse(parsed, raw, size) {
     // 房间是空的就放几件基础家具，不让生成白费
     for (const r of rooms) {
         if (furniture.some(f => f.room === r.id)) continue;
-        for (const [type, x] of [['window', 70], ['sofa', 45], ['plant', 85], ['lamp', 12]]) {
-            furniture.push({ id: uid('f'), type, name: CATALOG[type].label, room: r.id, x, color: '', by: 'ai' });
-        }
+        furniture.push(...defaultFurnitureFor(r));
     }
     if(size && !p.palette){Object.assign(palette,{wall:'#DDE7EA',floor:'#C9A27A',accent:'#579EB5',trim:'#27677D'});}
     return {
@@ -209,6 +252,7 @@ export function createHome(char, house) {
         presence: { atHome: false, activity: '', mood: '', spot: '', since: 0 },
         lastVisitAt: 0,
     };
+    if (home.house) throw new Error('已经入住的小屋不能通过重新设计覆盖，请使用扩建与搬家');
     home.theme = home.house ? homeTheme(home) : themeId(house.theme);
     home.themeLocked = true;
     home.appearance = house.appearance || home.appearance || '';
@@ -216,10 +260,16 @@ export function createHome(char, house) {
     house.theme = home.theme;
     home.charName = char?.name || '';
     if (!home.look && house.look) home.look = normalizeLook(house.look, char?.name);
-    if(home.house) throw new Error('已经入住的小屋不能通过重新设计覆盖，请使用扩建与搬家');
     home.house = house;
     home.currentRoom = house.rooms[0]?.id || '';
     return setHome(char, home);
+}
+
+// 生成要等一会儿；等完时这个家可能已经被拆掉了，就不再往里写，给一句看得懂的提示。
+function liveHome(char) {
+    const home = getHome(char);
+    if (!home?.house) throw new Error('这个家已经不在了，这次生成的内容没有保存。');
+    return home;
 }
 
 // ---------------- 家的近况（给模型看） ----------------
@@ -284,8 +334,9 @@ export async function comeHome(char, { signal } = {}) {
     const newEvents = events.filter(e=>!processed.has(storyFingerprint([e])));
     const fingerprint = storyFingerprint(newEvents);
     const freshStory = newEvents.length > 0;
-    const diaryDue = getDiary(home).mode !== 'manual' && (charTurn(home) || (freshStory && newEvents.some(e=>/纪念日|旅行|约会/.test(e.kind))) || pendingChanges(home).some(e=>/搬家|住宅从/.test(e.text)));  
     const changes = pendingChanges(home);
+    const changeCutoff = changes.reduce((m, c) => Math.max(m, Number(c.at) || 0), 0);
+    const diaryDue = getDiary(home).mode !== 'manual' && (charTurn(home) || (freshStory && newEvents.some(e=>/纪念日|旅行|约会/.test(e.kind))) || changes.some(e=>/搬家|住宅从/.test(e.text)));
     const story = (info.recent || '').slice(-5000);
     const user = `${contextBlock(info)}
 
@@ -323,16 +374,12 @@ ${diaryDue ? `\n# 交换日记\n书桌上的交换日记轮到他写了。他看
 另外加一个字段 "diary": ${DIARY_FORMAT}` : ''}`;
     const raw = await generate({ system: VISIT_SYSTEM, user, signal });
     const parsed = parseJsonLoose(raw);
-    const visit = applyVisit(char, parsed, raw, unread, {fingerprint:freshStory?fingerprint:'', eventKeys:newEvents.map(e=>storyFingerprint([e])), hasChanges:changes.length>0});
-    if (diaryDue && parsed?.diary) {
-        const h = getHome(char);
-        if (applyCharDiary(h, parsed.diary, '')) setHome(char, h);
-    }
+    const visit = applyVisit(char, parsed, raw, unread, {fingerprint:freshStory?fingerprint:'', eventKeys:newEvents.map(e=>storyFingerprint([e])), hasChanges:changes.length>0, changeCutoff, diaryDue});
     return visit;
 }
 
 function applyVisit(char, parsed, raw, unread, meta = {}) {
-    const home = getHome(char);
+    const home = liveHome(char);
     const p = parsed && typeof parsed === 'object' ? parsed : {};
     const spotIds = new Set((home.house?.furniture || []).map(f => f.id));
     const spot = spotIds.has(String(p.spot)) ? String(p.spot) : '';
@@ -350,10 +397,13 @@ function applyVisit(char, parsed, raw, unread, meta = {}) {
     home.visits.push(visit);
     home.presence = { atHome: true, activity: visit.activity, mood: visit.mood, spot, since: visit.at };
     home.lastVisitAt = visit.at;
-    // 仅在实际成功生成装修反馈后确认消费，避免遗漏。
-    if (p.note?.text && meta.hasChanges) home.changesSeenAt = visit.at;
+    // 这次回家写出了日记就记下来（模型有时把日记直接写成一段文字）
+    const diaryEntry = meta.diaryDue && p.diary ? applyCharDiary(home, p.diary, typeof p.diary === 'string' ? p.diary : '') : null;
+    const wroteNote = !!asText(p.note?.text || (typeof p.note === 'string' ? p.note : ''), 400);
+    // 写出纸条或日记，才算他注意到了这些装修变化；只算到这次提示词里带上的那些，生成期间新做的改动留到下次。
+    if (meta.hasChanges && (wroteNote || diaryEntry)) home.changesSeenAt = Math.max(Number(home.changesSeenAt) || 0, meta.changeCutoff || 0);
     // 仅在实际写出回应时消费事件；失败时下次回家重试。
-    if (meta.fingerprint && (p.note?.text || p.diary?.text || p.diary?.content)) {
+    if (meta.fingerprint && (wroteNote || diaryEntry)) {
         home.storyFingerprint = meta.fingerprint;
         home.processedStoryEvents = [...new Set([...(home.processedStoryEvents||[]),...(meta.eventKeys||[])])].slice(-200);
     }
@@ -364,25 +414,40 @@ function applyVisit(char, parsed, raw, unread, meta = {}) {
     }
 
     // 没有生成回信的纸条保留未读，供下次回家或手动回复。
-    const replies = Array.isArray(p.replies) ? p.replies : [];
-    for (const n of unread) {
-        const r = replies.find(x => String(x?.to) === n.id) || (unread.length === 1 ? replies[0] : null);
+    home.notes ||= [];
+    const replies = (Array.isArray(p.replies) ? p.replies : []).filter(x => x && typeof x === 'object');
+    const cleanId = v => String(v ?? '').replace(/^\s*(?:id\s*[=:：]\s*)?/i, '').replace(/[「」"'`\s]/g, '');
+    const used = new Set();
+    const pick = (n, i) => {
+        let k = replies.findIndex((x, j) => !used.has(j) && cleanId(x.to) === n.id);
+        if (k < 0) k = replies.findIndex((x, j) => !used.has(j) && String(x.to || '').includes(n.id));
+        // 都对不上编号时，回信数量和纸条数量一样就按顺序配
+        if (k < 0 && replies.length === unread.length && !replies.some(x => unread.some(u => cleanId(x.to) === u.id))) k = used.has(i) ? -1 : i;
+        if (k < 0 && unread.length === 1 && replies.length) k = 0;
+        if (k < 0) return null;
+        used.add(k);
+        return replies[k];
+    };
+    for (const [i, n] of unread.entries()) {
+        const target = home.notes.find(x => x.id === n.id) || n;
+        if (target.replyId) continue;
+        const r = pick(n, i);
         const text = asText(r?.text, 400);
         if (text) {
-            n.readAt = visit.at;
-            const reply = { id: uid('n'), from: 'char', kind: n.kind, place: n.place, text, at: visit.at, replyTo: n.id, readAt: 0 };
+            target.readAt = visit.at;
+            const reply = { id: uid('n'), from: 'char', kind: target.kind, place: target.place, text, at: visit.at, replyTo: target.id, readAt: 0 };
             home.notes.push(reply);
-            n.replyId = reply.id;
+            target.replyId = reply.id;
         }
     }
-    if (p.note && typeof p.note === 'object') {
-        const text = asText(p.note.text, 400);
+    if (p.note && (typeof p.note === 'object' || typeof p.note === 'string')) {
+        const text = asText(typeof p.note === 'string' ? p.note : p.note.text, 400);
         if (text) {
             home.notes.push({
                 id: uid('n'),
                 from: 'char',
-                kind: NOTE_KINDS.includes(p.note.kind) ? p.note.kind : '日常',
-                place: NOTE_PLACES.includes(p.note.place) ? p.note.place : '门边',
+                kind: NOTE_KINDS.includes(p.note?.kind) ? p.note.kind : '日常',
+                place: NOTE_PLACES.includes(p.note?.place) ? p.note.place : '门边',
                 text,
                 at: visit.at,
                 readAt: 0,
@@ -421,8 +486,9 @@ ${recentLog(home, 3)}
     const raw = await generate({ system: RESPOND_SYSTEM, user, signal });
     const parsed = parseJsonLoose(raw);
     const p = parsed && typeof parsed === 'object' ? parsed : {};
-    const fresh = getHome(char);
-    const last = fresh.visits[fresh.visits.length - 1];
+    const fresh = liveHome(char);
+    const last = fresh.visits?.[fresh.visits.length - 1];
+    if (!last) throw new Error('这个家已经不在了，这次生成的内容没有保存。');
     const reply = asText(p.reply, 600) || (parsed ? '' : clip(String(raw || ''), 600)) || '……';
     last.turns ||= [];
     last.turns.push({ user: userAction, reply, at: now() });
@@ -482,8 +548,9 @@ ${notesHistory(home)}
     const parsed = parseJsonLoose(raw);
     const text = asText(parsed?.text || parsed?.reply, 400) || clip(String(raw || '').replace(/^["“]|["”]$/g, ''), 400);
     if(!text)throw new Error('模型没有返回纸条内容，请手动重试');
-    const fresh = getHome(char);
-    const target = fresh.notes.find(n => n.id === noteId);
+    const fresh = liveHome(char);
+    const target = (fresh.notes || []).find(n => n.id === noteId);
+    if(!target)throw new Error('这张纸条已经不在了');
     if(target.replyId)throw new Error('这张纸条已经回复过了');
     const reply = { id: uid('n'), from: 'char', kind: target.kind, place: target.place, text, at: now(), replyTo: target.id, readAt: 0 };
     target.readAt = reply.at;
@@ -499,10 +566,12 @@ export async function writeCharNote(char,{signal}={}) {
     const info=await gatherContext(char);
     const user=`${contextBlock(info)}\n# 小屋\n${houseSummary(home)}\n# 最近的纸条\n${notesHistory(home)}\n请主动留一张简短的日常纸条。只输出 JSON：{ "kind":"日常", "place":"门边", "text":"纸条正文" }。`;
     const raw=await generate({system:VISIT_SYSTEM,user,signal,maxTokens:1000});
-    const p=parseJsonLoose(raw);const body=asText(p?.text,400);
-    if(!body)throw new Error('模型未生成有效纸条，请重试');
-    const fresh=getHome(char);
-    const note={id:uid('n'),from:'char',kind:NOTE_KINDS.includes(p.kind)?p.kind:'日常',place:NOTE_PLACES.includes(p.place)?p.place:'门边',text:body,at:now(),readAt:0};
+    const p=parseJsonLoose(raw);
+    // 模型没按 JSON 写、直接写了纸条正文时，正文照样用
+    const body=asText(p?.text||p?.note?.text||p?.content,400)||(p?'':clip(String(raw||'').replace(/^["“]|["”]$/g,'').trim(),400));
+    if(!body)throw new Error('模型没有返回纸条内容，请再试一次');
+    const fresh=liveHome(char);
+    const note={id:uid('n'),from:'char',kind:NOTE_KINDS.includes(p?.kind)?p.kind:'日常',place:NOTE_PLACES.includes(p?.place)?p.place:'门边',text:body,at:now(),readAt:0};
     fresh.notes||=[];fresh.notes.push(note);setHome(char,fresh);return note;
 }
 
@@ -618,7 +687,7 @@ ${room.name}${room.note ? `（${room.note}）` : ''}
     const parsed = parseJsonLoose(raw);
     const list = Array.isArray(parsed?.items) ? parsed.items : (Array.isArray(parsed) ? parsed : []);
     const items = list.map(x => normalizeItem(x)).filter(Boolean).slice(0, 4);
-    const fresh = getHome(char);
+    const fresh = liveHome(char);
     fresh.suggestions = { roomId, at: now(), items };
     setHome(char, fresh);
     return items;
@@ -675,6 +744,7 @@ export async function generateLook(char, { signal } = {}) {
     const parsed = parseJsonLoose(raw);
     const look = parsed?.look && typeof parsed.look === 'object' ? parsed.look : parsed;
     const home = getHome(char);
+    if (!home) throw new Error('这个家已经不在了，这次生成的内容没有保存。');
     home.look = normalizeLook(look, char?.name);
     setHome(char, home);
     return home.look;
@@ -746,6 +816,7 @@ export function addUserEntry(char, { weather, text, quote }) {
 }
 
 function applyCharDiary(home, raw, rawText) {
+    if (typeof raw === 'string' && !rawText) rawText = raw;
     const r = raw && typeof raw === 'object' ? raw : {};
     const text = asText(r.text || r.content, 1200) || clip(String(rawText || ''), 1200);
     if (!text) return null;
@@ -801,7 +872,8 @@ ${DIARY_FORMAT}`;
     const raw = await generate({ system: DIARY_SYSTEM, user, signal, maxTokens: 2000 });
     const parsed = parseJsonLoose(raw);
     const fresh = getHome(char);
-    const entry = applyCharDiary(fresh, parsed, parsed ? '' : raw);
+    if (!fresh) throw new Error('这个家已经不在了，这次生成的内容没有保存。');
+    const entry = applyCharDiary(fresh, parsed?.diary || parsed, parsed ? '' : raw);
     setHome(char, fresh);
     if (!entry) throw new Error('他这次没写出来，可以再叫他写一次。');
     return entry;

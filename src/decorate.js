@@ -1,9 +1,9 @@
 // 梦想家 · 布置模式
-import { esc, uid, clip } from './util.js?mxj=0.5.6';
-import { getHome, setHome } from './settings.js?mxj=0.5.6';
-import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.5.6';
-import { recordChanges, suggestFurniture, furnitureFromText } from './home.js?mxj=0.5.6';
-import { characterView } from './character.js?mxj=0.5.6';
+import { esc, uid, clip } from './util.js?mxj=0.5.7';
+import { getHome, setHome } from './settings.js?mxj=0.5.7';
+import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.5.7';
+import { recordChanges, suggestFurniture, furnitureFromText } from './home.js?mxj=0.5.7';
+import { characterView } from './character.js?mxj=0.5.7';
 
 const ITEM_COLORS = ['#2F5D4E', '#B2584A', '#E2C38A', '#8FA9B8', '#6E4B30', '#F4F1EA', '#2A2A2A', '#D99A4E', '#9C7BB0', '#E8A0A8'];
 const WALL_COLORS = ['#C9D3C0', '#E9E1CF', '#DDE7EA', '#F3E3E0', '#D8D2E6', '#F2E6C8', '#3E5A4C', '#2F3E4E'];
@@ -132,6 +132,7 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
             f.x = freeSpot(h, room.id, f.type);
             f.z = nextZ(h, room.id);
             delete f.row;
+            delete f.previousRoom;
             h.house.furniture.push(f);
             placedId = f.id;
         }, `在${room.name}放了「${item?.name || ''}」`);
@@ -194,7 +195,7 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
                    <button type="button" class="mxj-tool" data-act="deco-z" data-dz="-1">${IC.back}<span>放后面</span></button>`}
             <button type="button" class="mxj-tool" data-act="deco-flip">${IC.flip}<span>翻转</span></button>
             <button type="button" class="mxj-tool" data-act="deco-scale">${IC.size}<span>大小：${SCALE_NAMES[scale]}</span></button>
-            ${isFloor ? `<button type="button" class="mxj-tool" data-act="deco-row">${IC.row}<span>${row === 'back' ? '挪到前排' : '靠墙放'}</span></button>` : `<button type="button" class="mxj-tool" data-act="deco-z" data-dz="1">${IC.front}<span>放前面</span></button>`}
+            ${isFloor ? `<button type="button" class="mxj-tool" data-act="deco-row">${IC.row}<span>${row === 'back' ? '挪到前排' : '靠墙放'}</span></button>` : (layer === 'wall' ? `<button type="button" class="mxj-tool" data-act="deco-z" data-dz="1">${IC.front}<span>放前面</span></button>` : '')}
             <button type="button" class="mxj-tool is-danger" data-act="deco-store">${IC.store}<span>收进仓库</span></button>
           </div>
           <div class="mxj-field"><span>颜色</span><div class="mxj-colors">${swatches}</div></div>
@@ -210,6 +211,11 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
         const sw = (list, cur, act) => list.map(c => `<button type="button" class="mxj-color${c.toLowerCase() === cur ? ' is-on' : ''}" style="background:${c}" data-act="${act}" data-color="${c}" aria-label="换成这个颜色" aria-pressed="${c.toLowerCase() === cur}"></button>`).join('');
         return `<section class="mxj-card">
           <h3>${esc(room.name)}的墙和地板</h3>
+          ${room.art?.path ? `<div class="mxj-places is-two" role="radiogroup" aria-label="房间背景">
+            <button type="button" role="radio" class="mxj-place${room.useArt !== false ? ' is-on' : ''}" data-act="deco-useart" data-id="on" aria-checked="${room.useArt !== false}">用画好的背景</button>
+            <button type="button" role="radio" class="mxj-place${room.useArt === false ? ' is-on' : ''}" data-act="deco-useart" data-id="off" aria-checked="${room.useArt === false}">用纯色墙和地板</button>
+          </div>
+          ${room.useArt !== false ? '<p class="mxj-muted">现在显示的是画好的背景，下面的颜色要切到「用纯色墙和地板」才看得到。</p>' : ''}` : ''}
           <div class="mxj-field"><span>墙面</span><div class="mxj-colors">${sw(WALL_COLORS, wall, 'deco-wall')}</div></div>
           <div class="mxj-field"><span>地板</span><div class="mxj-colors">${sw(FLOOR_COLORS, floor, 'deco-floor')}</div></div>
           <p class="mxj-muted">点房间里的家具可以挪动、翻转、换颜色。</p>
@@ -453,12 +459,25 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
                 if (f) mutate(char, h => {
                     const idx = h.house.furniture.findIndex(x => x.id === f.id);
                     const [it] = h.house.furniture.splice(idx, 1);
-                    h.house.storage ||= [];
-                    h.house.storage.push({ id: it.id, type: it.type, name: it.name, color: it.color, by: it.by, flip: it.flip, scale: it.scale });
+                    h.house.storage = Array.isArray(h.house.storage) ? h.house.storage : [];
+                    // 整件收起来（包括画好的图片、挂墙高度），拿出来时原样放回
+                    const { room: prevRoom, x: _x, z: _z, ...rest } = it;
+                    h.house.storage.push({ ...rest, previousRoom: prevRoom });
                 }, `把「${f.name}」收进了仓库`);
                 deco.selected = '';
                 rerender();
                 return true;
+            case 'deco-useart': {
+                const room = currentRoom(home);
+                const on = el.dataset.id !== 'off';
+                mutate(char, h => {
+                    const r = h.house.rooms.find(x => x.id === room.id);
+                    if (on) delete r.useArt;
+                    else r.useArt = false;
+                }, `${room.name}换成了${on ? '画好的背景' : '纯色墙和地板'}`);
+                rerender();
+                return true;
+            }
             case 'deco-wall':
             case 'deco-floor': {
                 const room = currentRoom(home);
@@ -534,6 +553,7 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
 
     function enter(char) {
         const home = getHome(char);
+        deco.char = char;
         deco.roomId = home?.currentRoom || '';
         deco.selected = '';
         deco.undo = [];
@@ -542,20 +562,27 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
         deco.describe = false;
     }
 
-    // 离开布置：把这次的改动记下来，他回家时会注意到
-    function leave(char) {
+    // 把这次布置的改动记下来，他回家时会注意到。不管怎么离开布置页（完成、返回、关掉、去设置、去绘制、切换聊天）都会走这里。
+    function commit() {
         const changes = [...new Set(deco.changes)];
-        if (changes.length) {
-            recordChanges(char, changes);
-            state.newLayout = changes.slice(0, 4).join('；');
-        }
+        const owner = deco.char;
         deco.selected = '';
         deco.changes = [];
+        deco.undo = [];
+        deco.redo = [];
+        if (!changes.length || !owner) return [];
+        recordChanges(owner, changes);
+        state.newLayout = changes.slice(0, 4).join('；');
+        return changes;
+    }
+
+    function leave() {
+        const changes = commit();
         state.view = 'home';
         state.keepScroll = false;
         render();
         if (changes.length) flash('布置好了');
     }
 
-    return { view, attach, onAct, describe, rename, enter, leave };
+    return { view, attach, onAct, describe, rename, enter, leave, commit };
 }

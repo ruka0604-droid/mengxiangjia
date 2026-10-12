@@ -8,12 +8,13 @@ SillyTavern 第三方扩展：按角色人设盖一个用户和角色共同的�
 - **不限制温度。** 温度只做 0–2 的接口范围钳制，不另外压低或封顶。
 - **界面和 README 里不写任何具体的接口名、模型名、服务商名**，输入框占位只写「API 地址」「模型 ID」这类通用词。
 - **「有入口就能点进去」**：界面上画成按钮、标签、卡片等看起来能点的东西，必须真的能打开对应内容；还没做的功能不放入口。
-- **入口是魔法棒菜单里的「梦想家」**，扩展设置里另有一个「打开梦想家」按钮和副 API 设置。
-- 酒馆的 `menu_button` 在窄屏的竖排容器里会变成竖排文字，放进抽屉的按钮要加 `writing-mode: horizontal-tb` 和 `white-space: nowrap`（已写在 style.css）。
+- **入口是魔法棒菜单里的「梦想家」**，另有可选的可拖动小屋浮窗（设置里开关，默认关）。0.5.1 起扩展设置里不再放梦想家的面板，所有设置都在梦想家内部。
+- 酒馆的 `menu_button` 在窄屏的竖排容器里会变成竖排文字，放到梦想家面板外的按钮要加 `writing-mode: horizontal-tb` 和 `white-space: nowrap`。
+- **不用系统的 `window.confirm`**（TT 里不一定弹得出来），确认一律用 `ui.js` 里的 `askConfirm()`。
 - **三处都要能用**：PC 浏览器、手机浏览器访问的（云）酒馆、TT（TauriTavern，iOS WebView）。手机优先：触控目标 ≥44px，面板按 visualViewport 定尺寸。
 - **每次发版都更新 README**：在最上面加 `## 版本号 标题`，下面只写这次的变动，用作者看得懂的话，不写代码细节。插件设置页的「更新日志」读的就是 README 里第一个 `##` 段落。
 - **发版打包**（作者要 zip 时）：根目录只放运行文件——`manifest.json`、`index.js`、`style.css`、`README.md`、`src/`。不放 `.github`、测试脚本、CLAUDE.md，README 里也不要写「没有工作流」之类的话。
-- **推送**：作者让直接推到 `main`（2026-10）。
+- **仓库与推送**：仓库是 `https://github.com/ruka0604-droid/mengxiangjia`，直接推到 `main`（2026-10）。旧仓库 `Zaiyebuzuoyouqingdetiangou/mengxiangjia` 不再使用。
 - 不从外网加载字体（国内用户访问不了），字体都用系统字体栈。
 
 ## 版本号
@@ -49,7 +50,9 @@ EOF
 | `src/character.js` | 读角色卡、用户人设、角色世界书（`/api/worldinfo/get`）、最近聊天 |
 | `src/home.js` | 家的数据和所有生成：盖房子、回家、回应、纸条回信、布置改动记录、「他挑的」、按描述做家具 |
 | `src/furniture.js` | 家具图库（`CATALOG` + 每种的 SVG 画法）、房间正面图绘制、平面图、小预览 |
-| `src/apiSettings.js` | 扩展设置抽屉里的 API 设置（用酒馆自己的 text_pole / menu_button 样式），和面板设置读写同一份 |
+| `src/floating.js` | 可选的小屋浮窗入口（拖动换位置、轻点打开） |
+| `src/theme.js` | 三套主题（手帐 / 像素 / 绘本）和心情表情 |
+| `src/art.js`、`src/imageApi.js`、`src/inflate.js` | 生图：准备提示词 → 请求一张图 → 预览 → 保存到酒馆 `/api/images/upload` |
 | `src/sprite.js` | Q 版像素小人：16×24 像素格，按形象数据画；`poseFor` 按家具和他在做的事定站/坐/拿书/拿杯/闭眼 |
 | `src/decorate.js` | 布置模式：拖动吸附、工具条、抽屉、仓库、墙面地板颜色、撤销重做 |
 | `src/ui.js` | 全屏 `<dialog>` 面板与各页面：首页、盖房子、纸条、回家记录、设置 |
@@ -66,6 +69,8 @@ EOF
 - `notes[]`：`{from:'user'|'char', kind, place, text, at, deferred, readAt, replyTo, replyId}`，最多留 300 张
 - `changes[]` + `changesSeenAt`：用户布置的改动，回家时写进提示词
 - `suggestions`：「他挑的」当前结果
+- `house.storage[]`：仓库。收进仓库和移除房间时整件家具放进来（保留 `art`、`dy` 等），记 `previousRoom`。0.5.6 曾误存到 `furnitureStorage`，`settings.getHome()` 会自动合并过来
+- 房间 `type`：房间种类（客厅、卧室……），用 `home.js` 的 `roomTypeOf()` 从名字认；`art` + `useArt`：画好的房间背景，`useArt === false` 时显示纯色墙地
 - `look`：像素小人形象 `{hairStyle, hair, skin, eyes, outfit, accent, pants, shoes, accessory}`；没有时按名字给默认样子
 - `diary`：`{mode:'visit'|'daily'|'manual', entries[{author, date, weather, text, quote, stamp}], readAt}`。mode 为 visit 时，他的日记并在回家那次调用里一起生成
 
@@ -80,6 +85,11 @@ EOF
 ## 待定
 
 - 交换日记里「贴一张图」：图片怎么存还没定（只存本机浏览器 / 用柏宝绘生成 / 不做），做之前先问作者。入口没放。
+
+## 生成的约定
+
+- 所有生成都走 `api.js` 的 `generate()`：取消后直接结束，结果不会写进存档；等完再写之前用 `liveHome(char)` 确认家还在。
+- 副 API 的模型列表：手动接口和酒馆连接配置都能拉（`fetchManualModels` / `fetchProfileModels`），结果缓存在 `independentModelCache`。
 
 ## 调用次数
 

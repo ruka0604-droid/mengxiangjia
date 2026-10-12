@@ -1,9 +1,9 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.5.6';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.6';
-import { homeTheme } from './theme.js?mxj=0.5.6';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.5.6';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.5.6';
+import { generate } from './api.js?mxj=0.5.7';
+import { gatherContext, contextBlock } from './character.js?mxj=0.5.7';
+import { homeTheme } from './theme.js?mxj=0.5.7';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.5.7';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.5.7';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -72,5 +72,7 @@ export async function acceptArt(char,draft,{signal}={}) {
     const path=await saveImage(draft.dataUrl,char.name || home.charName,{signal,pixelArt:draft.theme==='pixel'});
     if(signal?.aborted || getHome(char)?.house!==draft.house || artTarget(getHome(char),draft.kind,draft.id)!==target) throw new Error('保存期间小屋已改变，原素材未替换');
     target.art={path,theme:draft.theme,prompt:draft.generatedPrompt,negative:draft.generatedNegative,seed:draft.seed,model:draft.model,width:draft.width,height:draft.height,at:Date.now()};
+    // 新画的房间背景保存后直接显示（之前切到纯色墙地的也切回来）
+    if(draft.kind==='room') delete target.useArt;
     setHome(char,home);return target.art;
 }
