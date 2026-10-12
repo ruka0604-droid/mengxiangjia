@@ -66,7 +66,7 @@ EOF
 | `src/ui-common.js` | 界面共用的图标 `ICON` 和没有角色时的提示 |
 | `src/view-home.js` | 小屋首页（房间、他在做什么、家具卡、扩建与搬家）和回家记录 |
 | `src/view-build.js` | 盖房子 / 房子档案 |
-| `src/view-notes.js`、`src/view-diary.js`、`src/view-look.js`、`src/view-art.js`、`src/view-settings.js` | 小纸条、交换日记、他的样子、画出我们的家、设置（含副 API 模型列表、生图设置、更新日志、拆家） |
+| `src/view-notes.js`、`src/view-diary.js`、`src/view-look.js`、`src/view-art.js`、`src/view-settings.js` | 小纸条、交换日记、他的样子、画出我们的家、设置。设置分四页（`state.settingsTab`）：常用（浮窗、读取、回家）/ 文字生成（副 API、模型列表）/ 生图 / 关于（更新日志、拆家），顺序沿用原来从上到下的顺序；别处要直达某页，按钮写 `data-act="settings" data-tab="image"` |
 | `src/util.js` | 小工具，含宽松 JSON 解析 `parseJsonLoose` |
 | `style.css` | 全部样式限定在 `#mxj-root` 内；已经抵消了酒馆全局对 button/input/select/checkbox 的主题样式 |
 

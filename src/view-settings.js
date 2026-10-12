@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.5.9';
-import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.9';
-import { esc } from './util.js?mxj=0.5.9';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.5.9';
-import { characterView } from './character.js?mxj=0.5.9';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.5.9';
-import { ICON } from './ui-common.js?mxj=0.5.9';
+import { refreshFloating } from './floating.js?mxj=0.6.0';
+import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.6.0';
+import { esc } from './util.js?mxj=0.6.0';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.0';
+import { characterView } from './character.js?mxj=0.6.0';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.0';
+import { ICON } from './ui-common.js?mxj=0.6.0';
 
 let app = null;
 let state = null;
@@ -66,6 +66,25 @@ export function setup(a) {
                     flash(`已选择 ${el.dataset.id}`);
                 }
             },
+            'settings-tab'(el) {
+                state.settingsTab = el.dataset.id;
+                state.error = '';
+                render();
+            },
+            'visit-mode'(el) {
+                updateSettings({ visitMode: el.dataset.id === 'manual' ? 'manual' : 'open' });
+                state.keepScroll = true;
+                render();
+            },
+            step(el) {
+                const key = el.dataset.key;
+                if (!['recentChatCount', 'visitGapMinutes'].includes(key)) return;
+                const min = key === 'recentChatCount' ? 1 : 0;
+                const next = Math.max(min, (Number(getSettings()[key]) || 0) + Number(el.dataset.delta || 0));
+                updateSettings({ [key]: next });
+                state.keepScroll = true;
+                render();
+            },
             'toggle-models'() {
                 state.modelListOpen = !state.modelListOpen;
                 state.keepScroll = true;
@@ -125,7 +144,64 @@ function saveField(field, value) {
     }
 }
 
+// 设置分四页，顺序和原来从上到下一样：常用（浮窗、读取、回家）→ 文字生成 → 生图 → 关于（更新日志、拆家）
+const SETTINGS_TABS = [
+    { id: 'common', name: '常用' },
+    { id: 'text', name: '文字生成' },
+    { id: 'image', name: '生图' },
+    { id: 'about', name: '关于' },
+];
+
 function viewSettings(char, home) {
+    const tab = SETTINGS_TABS.some(t => t.id === state.settingsTab) ? state.settingsTab : 'common';
+    const tabs = SETTINGS_TABS.map(t => `<button type="button" role="tab" class="mxj-stab${t.id === tab ? ' is-on' : ''}" data-act="settings-tab" data-id="${t.id}" aria-selected="${t.id === tab}">${esc(t.name)}</button>`).join('');
+    const body = tab === 'text' ? textTab() : tab === 'image' ? imageSettingsCard() : tab === 'about' ? aboutTab(char, home) : commonTab();
+    return `<nav class="mxj-stabs" role="tablist" aria-label="设置分页">${tabs}</nav>${body}`;
+}
+
+function switchRow(field, name, note, on) {
+    return `<label class="mxj-switch-row">
+          <span class="mxj-grow"><span class="mxj-switch-name">${esc(name)}</span>${note ? `<span class="mxj-muted">${esc(note)}</span>` : ''}</span>
+          <input type="checkbox" role="switch" class="mxj-switch" data-field="${field}" ${on ? 'checked' : ''}>
+        </label>`;
+}
+
+function stepper(field, label, value, step, unit) {
+    return `<div class="mxj-stepper">
+          <span>${esc(label)}</span>
+          <span class="mxj-stepper-box">
+            <button type="button" data-act="step" data-key="${field}" data-delta="${-step}" aria-label="${esc(label)}减少 ${step}">−</button>
+            <input type="number" class="mxj-input" data-field="${field}" value="${esc(value)}" min="${field === 'recentChatCount' ? 1 : 0}" step="${step}" inputmode="numeric" aria-label="${esc(label)}（${esc(unit)}）">
+            <span class="mxj-stepper-unit">${esc(unit)}</span>
+            <button type="button" data-act="step" data-key="${field}" data-delta="${step}" aria-label="${esc(label)}增加 ${step}">＋</button>
+          </span>
+        </div>`;
+}
+
+function commonTab() {
+    const s = getSettings();
+    const open = s.visitMode === 'open';
+    return `
+      <section class="mxj-card">
+        <h3>小屋浮窗</h3>
+        ${switchRow('floatingLauncher', '显示可拖动的小屋浮窗', '小屋图标显示在酒馆页面，拖动换位置，轻点打开。魔法棒入口一直都在。', s.floatingLauncher)}
+        <div class="mxj-sep"></div>
+        <h3>生成时读取</h3>
+        ${switchRow('readCharacterWorldBook', '角色世界书', '', s.readCharacterWorldBook)}
+        ${switchRow('readRecentChat', '最近的聊天', '', s.readRecentChat)}
+        ${s.readRecentChat ? stepper('recentChatCount', '读最近', s.recentChatCount, 1, '条') : ''}
+        <div class="mxj-sep"></div>
+        <h3>他什么时候回家</h3>
+        <div class="mxj-seg" role="radiogroup" aria-label="他什么时候回家">
+          <button type="button" role="radio" class="${open ? 'is-on' : ''}" data-act="visit-mode" data-id="open" aria-checked="${open}">打开小屋时</button>
+          <button type="button" role="radio" class="${open ? '' : 'is-on'}" data-act="visit-mode" data-id="manual" aria-checked="${!open}">只在我点时</button>
+        </div>
+        <p class="mxj-muted">${open ? '打开小屋时，离上次回家够久就回来。' : '只在你点「等他回家」时回来。'}</p>
+        ${open ? stepper('visitGapMinutes', '至少隔', s.visitGapMinutes, 10, '分钟') : ''}
+      </section>`;
+}
+
+function textTab() {
     const s = getSettings();
     const profiles = listConnectionProfiles();
     const independent = s.generationSource === 'independent';
@@ -135,11 +211,6 @@ function viewSettings(char, home) {
     const usingProfile = !!s.independentConnectionProfileId;
     const modelBox = modelListBox(s);
     return `
-      <section class="mxj-card">
-        <h3>小浮窗入口</h3>
-        <label class="mxj-check"><span>显示可拖动的小屋浮窗</span><input type="checkbox" data-field="floatingLauncher" ${s.floatingLauncher ? "checked" : ""}></label>
-        <p class="mxj-muted">打开后，小屋图标会显示在酒馆页面；拖动调整位置，轻点打开梦想家。关闭梦想家后浮窗重新出现。魔法棒入口始终保留。</p>
-      </section>
       <section class="mxj-card">
         <h3>文字生成用哪个 API</h3>
         <div class="mxj-places is-two" role="radiogroup" aria-label="生成用哪个 API">
@@ -170,20 +241,11 @@ function viewSettings(char, home) {
           <label class="mxj-field"><span>温度</span><input type="number" class="mxj-input" data-field="independentApiTemperature" value="${esc(s.independentApiTemperature)}" min="0" max="2" step="0.05" inputmode="decimal"></label>
           <label class="mxj-field"><span>最大输出</span><input type="number" class="mxj-input" data-field="independentApiMaxTokens" value="${esc(s.independentApiMaxTokens)}" min="256" max="64000" step="256" inputmode="numeric"></label>
         </div>
-      </section>
-      <section class="mxj-card">
-        <h3>生成时读取</h3>
-        <label class="mxj-check"><span>角色世界书</span><input type="checkbox" data-field="readCharacterWorldBook" ${s.readCharacterWorldBook ? 'checked' : ''}></label>
-        <label class="mxj-check"><span>最近的聊天</span><input type="checkbox" data-field="readRecentChat" ${s.readRecentChat ? 'checked' : ''}></label>
-        ${s.readRecentChat ? `<label class="mxj-field"><span>读最近几条</span><input type="number" class="mxj-input" data-field="recentChatCount" value="${esc(s.recentChatCount)}" min="1" max="40" step="1" inputmode="numeric"></label>` : ''}
-      </section>
-      <section class="mxj-card">
-        <h3>他什么时候回家</h3>
-        <label class="mxj-radio"><input type="radio" name="mxj-visit" data-field="visitMode" value="open" ${s.visitMode === 'open' ? 'checked' : ''}><span>打开小屋时，离上次回家够久就回来</span></label>
-        <label class="mxj-radio"><input type="radio" name="mxj-visit" data-field="visitMode" value="manual" ${s.visitMode === 'manual' ? 'checked' : ''}><span>只在我点「等他回家」时</span></label>
-        ${s.visitMode === 'open' ? `<label class="mxj-field"><span>至少隔多少分钟</span><input type="number" class="mxj-input" data-field="visitGapMinutes" value="${esc(s.visitGapMinutes)}" min="0" step="10" inputmode="numeric"></label>` : ''}
-      </section>
-      ${imageSettingsCard()}
+      </section>`;
+}
+
+function aboutTab(char, home) {
+    return `
       ${changelogCard()}
       ${home?.house ? `<section class="mxj-card">
         <h3>拆掉这个家</h3>

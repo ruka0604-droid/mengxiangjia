@@ -1,13 +1,13 @@
 // 梦想家 · 他回家、回应他、什么时候回家
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.5.9';
-import { generate } from './api.js?mxj=0.5.9';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.9';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.9';
-import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.5.9';
-import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.5.9';
-import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.5.9';
-import { pendingChanges } from './home-decor.js?mxj=0.5.9';
-import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.5.9';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.6.0';
+import { generate } from './api.js?mxj=0.6.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.0';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.6.0';
+import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.6.0';
+import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.6.0';
+import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.6.0';
+import { pendingChanges } from './home-decor.js?mxj=0.6.0';
+import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.6.0';
 
 // ---------------- 他回家 ----------------
 

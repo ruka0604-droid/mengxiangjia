@@ -643,3 +643,79 @@
 #mxj-root .mxj-confirm-card p { font-size: 15px; line-height: 1.6; }
 #mxj-root .mxj-btn.is-danger-solid { background: var(--mxj-red); border-color: var(--mxj-red); color: #FFFFFF; }
 #mxj-root .mxj-look-preview.is-art { display: block; }
+
+/* 0.6.0 · 设置页分页：顶部四个分页、开关、分段按钮、加减按钮 */
+#mxj-root .mxj-stabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+#mxj-root .mxj-stab {
+    min-height: 44px; padding: 4px 2px; margin: 0; cursor: pointer;
+    border: 1px solid var(--mxj-line); border-radius: 10px;
+    background: var(--mxj-white); color: var(--mxj-ink); box-shadow: none;
+    font-size: 14px; white-space: nowrap; touch-action: manipulation;
+}
+#mxj-root .mxj-stab.is-on { background: var(--mxj-green); border-color: var(--mxj-green); color: var(--mxj-paper); font-weight: 700; }
+#mxj-root .mxj-stab:focus-visible { outline: 2px solid var(--mxj-red); outline-offset: 2px; }
+#mxj-root .mxj-sep { height: 1px; background: var(--mxj-line-soft); margin: 4px 0; }
+#mxj-root .mxj-card h3 + .mxj-switch-row { margin-top: -6px; }
+
+#mxj-root .mxj-switch-row { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; }
+#mxj-root .mxj-switch-row > .mxj-grow { display: flex; flex-direction: column; gap: 2px; }
+#mxj-root .mxj-switch-name { font-size: 14px; color: var(--mxj-ink); }
+#mxj-root input[type="checkbox"].mxj-switch {
+    position: relative; display: block; flex: none;
+    width: 48px; height: 28px; margin: 0 2px; padding: 0;
+    border: 2px solid var(--mxj-line); border-radius: 999px;
+    background: var(--mxj-white); cursor: pointer; transition: background .15s;
+}
+#mxj-root input[type="checkbox"].mxj-switch::before {
+    content: ""; position: absolute; top: 2px; left: 2px;
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--mxj-line); box-shadow: none; clip-path: none; transform: none;
+    transition: left .15s, background .15s;
+}
+#mxj-root input[type="checkbox"].mxj-switch:checked { background: var(--mxj-green); border-color: var(--mxj-green); }
+#mxj-root input[type="checkbox"].mxj-switch:checked::before { left: 22px; background: #FFFFFF; transform: none; }
+
+#mxj-root .mxj-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 2px solid var(--mxj-green); border-radius: 10px; overflow: hidden; }
+#mxj-root .mxj-seg button {
+    min-height: 44px; margin: 0; padding: 4px 6px; border: 0; border-radius: 0; box-shadow: none;
+    background: var(--mxj-white); color: var(--mxj-ink); font-size: 14px; cursor: pointer; touch-action: manipulation;
+}
+#mxj-root .mxj-seg button.is-on { background: var(--mxj-green); color: var(--mxj-paper); font-weight: 600; }
+#mxj-root .mxj-seg button:focus-visible { outline: 2px solid var(--mxj-red); outline-offset: -3px; }
+
+#mxj-root .mxj-stepper { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; font-size: 14px; color: var(--mxj-ink); }
+#mxj-root .mxj-stepper-box { display: flex; align-items: center; border: 2px solid var(--mxj-line); border-radius: 10px; background: var(--mxj-white); overflow: hidden; }
+#mxj-root .mxj-stepper-box button {
+    width: 44px; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none;
+    background: transparent; color: var(--mxj-green); font-size: 20px; line-height: 1; cursor: pointer; touch-action: manipulation;
+}
+#mxj-root .mxj-stepper-box .mxj-input {
+    width: 56px; min-height: 44px; height: 44px; margin: 0; padding: 0 2px;
+    border: 0; border-radius: 0; background: transparent; box-shadow: none;
+    text-align: center; font-size: 15px; -moz-appearance: textfield; appearance: textfield;
+}
+#mxj-root .mxj-stepper-box .mxj-input::-webkit-outer-spin-button,
+#mxj-root .mxj-stepper-box .mxj-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+#mxj-root .mxj-stepper-unit { font-size: 13px; color: var(--mxj-muted); padding-right: 2px; }
+
+/* 像素：方角、粗边，选中的分页和面板同色 */
+#mxj-root[data-theme="pixel"] .mxj-stab { border: 3px solid #579EB5; border-radius: 0; background: #3E86A0; color: #FFF5D8; }
+#mxj-root[data-theme="pixel"] .mxj-stab.is-on { border-color: #FFF1D8; background: #FFF1D8; color: #214B5D; box-shadow: 2px 2px 0 #164A60; }
+#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch,
+#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch::before { border-radius: 0; }
+#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch { border-color: #579EB5; background: #FFF8E9; }
+#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch::before { background: #8AA9B4; }
+#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch:checked { border-color: #27677D; background: #579EB5; }
+#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch:checked::before { background: #FFFFFF; }
+#mxj-root[data-theme="pixel"] .mxj-seg { border-color: #579EB5; border-radius: 0; }
+#mxj-root[data-theme="pixel"] .mxj-seg button { background: #FFF8E9; color: #27677D; }
+#mxj-root[data-theme="pixel"] .mxj-seg button.is-on { background: #579EB5; color: #FFFFFF; }
+#mxj-root[data-theme="pixel"] .mxj-stepper-box { border-color: #579EB5; border-radius: 0; background: #FFF8E9; }
+#mxj-root[data-theme="pixel"] .mxj-stepper-box button { color: #27677D; }
+#mxj-root[data-theme="pixel"] .mxj-sep { background: #A5D5C5; }
+/* 手帐、绘本：跟各自的纸色和圆角 */
+#mxj-root[data-theme="scrapbook"] .mxj-stab { border-color: #AB9169; border-radius: 4px 9px 5px 8px; background: #F9EDCF; color: #503D29; }
+#mxj-root[data-theme="scrapbook"] .mxj-stab.is-on { background: #647149; border-color: #647149; color: #FFF6DF; }
+#mxj-root[data-theme="storybook"] .mxj-stab { border-radius: 18px; }
+#mxj-root[data-theme="storybook"] .mxj-seg, #mxj-root[data-theme="storybook"] .mxj-stepper-box { border-radius: 18px; }
+#mxj-root[data-theme="storybook"] .mxj-sep { display: none; }

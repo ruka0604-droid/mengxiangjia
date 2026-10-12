@@ -1,9 +1,9 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.5.9';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.9';
-import { homeTheme } from './theme.js?mxj=0.5.9';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.5.9';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.5.9';
+import { generate } from './api.js?mxj=0.6.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.0';
+import { homeTheme } from './theme.js?mxj=0.6.0';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.0';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.0';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
