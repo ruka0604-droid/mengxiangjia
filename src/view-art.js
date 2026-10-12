@@ -1,8 +1,8 @@
 // 梦想家 · 界面 · 画出我们的家（准备提示词 → 画一张 → 满意再保存）
-import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.8';
-import { homeTheme, themeName } from './theme.js?mxj=0.5.8';
-import { esc } from './util.js?mxj=0.5.8';
-import { currentCharacter, characterKey } from './settings.js?mxj=0.5.8';
+import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.9';
+import { homeTheme, themeName } from './theme.js?mxj=0.5.9';
+import { esc } from './util.js?mxj=0.5.9';
+import { currentCharacter, characterKey } from './settings.js?mxj=0.5.9';
 
 let app = null;
 let state = null;

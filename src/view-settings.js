@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.5.8';
-import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.8';
-import { esc } from './util.js?mxj=0.5.8';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.5.8';
-import { characterView } from './character.js?mxj=0.5.8';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.5.8';
-import { ICON } from './ui-common.js?mxj=0.5.8';
+import { refreshFloating } from './floating.js?mxj=0.5.9';
+import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.9';
+import { esc } from './util.js?mxj=0.5.9';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.5.9';
+import { characterView } from './character.js?mxj=0.5.9';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.5.9';
+import { ICON } from './ui-common.js?mxj=0.5.9';
 
 let app = null;
 let state = null;
@@ -21,6 +21,10 @@ export function setup(a) {
         views: { settings: viewSettings },
         titles: {
             settings: () => ['梦想家设置', '生成 · 读取 · 回家'],
+        },
+        // 每次进设置页，模型列表先收着
+        enter: {
+            settings() { state.modelListOpen = false; },
         },
         after: {
             settings() {
@@ -48,16 +52,24 @@ export function setup(a) {
                         : await fetchManualModels(s.independentApiBaseUrl, s.independentApiKey);
                     updateSettings({ independentModelCache: { key, models: list, at: Date.now() } });
                     state.modelFilter = '';
+                    state.modelListOpen = true;
                     flash(`拿到 ${list.length} 个模型，点一下就能选`);
                 });
             },
             'pick-model'(el) {
                 if (el.dataset.id) {
                     updateSettings({ independentApiModel: el.dataset.id });
+                    // 选好就收起，不占地方
+                    state.modelListOpen = false;
                     state.keepScroll = true;
                     render();
                     flash(`已选择 ${el.dataset.id}`);
                 }
+            },
+            'toggle-models'() {
+                state.modelListOpen = !state.modelListOpen;
+                state.keepScroll = true;
+                render();
             },
             test() {
                 void run('正在测试连接…', async () => {
@@ -190,6 +202,7 @@ function modelListBox(s) {
     const models = cache && cache.key === modelSourceKey(s) && Array.isArray(cache.models) ? cache.models : [];
     const current = String(s.independentApiModel || '');
     const q = String(state.modelFilter || '').trim().toLowerCase();
+    const open = !!state.modelListOpen;
     const items = models.map(m => {
         const on = m === current;
         const hidden = q && !m.toLowerCase().includes(q) ? ' hidden' : '';
@@ -198,14 +211,15 @@ function modelListBox(s) {
     return `<div class="mxj-field mxj-model-box">
       <span>模型列表</span>
       <div class="mxj-row mxj-wrap">
-        <button type="button" class="mxj-btn mxj-grow" data-act="fetch-models" ${state.busy ? 'disabled' : ''}>${models.length ? '重新拉取模型列表' : '拉取模型列表'}</button>
+        <button type="button" class="mxj-btn mxj-grow" data-act="fetch-models" ${state.busy ? 'disabled' : ''}>${models.length ? '重新拉取' : '拉取模型列表'}</button>
+        ${models.length ? `<button type="button" class="mxj-btn mxj-grow" data-act="toggle-models" aria-expanded="${open}" aria-controls="mxj-model-list">${open ? '收起列表 ▴' : `展开列表 · ${models.length} 个 ▾`}</button>` : ''}
       </div>
-      ${models.length ? `
+      ${models.length && open ? `
       <label class="mxj-sr" for="mxj-model-filter">搜索模型</label>
       <input id="mxj-model-filter" type="text" class="mxj-input" data-field="modelFilter" value="${esc(state.modelFilter || '')}" placeholder="搜索模型（共 ${models.length} 个）" autocapitalize="off" autocomplete="off" spellcheck="false" enterkeyhint="search">
-      <div class="mxj-model-list" role="listbox" aria-label="模型列表">${items}</div>
+      <div id="mxj-model-list" class="mxj-model-list" role="listbox" aria-label="模型列表">${items}</div>
       <p class="mxj-muted mxj-model-empty"${q && !models.some(m => m.toLowerCase().includes(q)) ? '' : ' hidden'}>没有找到包含这几个字的模型。</p>`
-        : `<p class="mxj-muted">${s.independentConnectionProfileId ? '会用选中的酒馆连接配置去拉取。' : '先填好 API 地址和 Key，'}点「拉取模型列表」，可选的模型会列在这里，点一下就选上。</p>`}
+        : models.length ? '' : `<p class="mxj-muted">${s.independentConnectionProfileId ? '会用选中的酒馆连接配置去拉取。' : '先填好 API 地址和 Key，'}点「拉取模型列表」，可选的模型会列在这里，点一下就选上。</p>`}
     </div>`;
 }
 

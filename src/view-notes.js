@@ -1,8 +1,8 @@
 // 梦想家 · 界面 · 小纸条
-import { esc, formatTime } from './util.js?mxj=0.5.8';
-import { characterView } from './character.js?mxj=0.5.8';
-import { NOTE_KINDS, NOTE_PLACES, postNote, replyToNote, writeCharNote, markCharNotesRead } from './home-notes.js?mxj=0.5.8';
-import { viewNoChar } from './ui-common.js?mxj=0.5.8';
+import { esc, formatTime } from './util.js?mxj=0.5.9';
+import { characterView } from './character.js?mxj=0.5.9';
+import { NOTE_KINDS, NOTE_PLACES, postNote, replyToNote, writeCharNote, markCharNotesRead } from './home-notes.js?mxj=0.5.9';
+import { viewNoChar } from './ui-common.js?mxj=0.5.9';
 
 let app = null;
 let state = null;
