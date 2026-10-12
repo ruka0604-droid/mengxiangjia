@@ -1,7 +1,7 @@
 // 梦想家独立生图连接。图片直接请求使用者配置的服务，不读取其他扩展。
-import { getSettings } from './settings.js?mxj=0.6.1';
-import { ctx, uid } from './util.js?mxj=0.6.1';
-import { inflateRaw } from './inflate.js?mxj=0.6.1';
+import { getSettings } from './settings.js?mxj=0.5.9';
+import { ctx, uid } from './util.js?mxj=0.5.9';
+import { inflateRaw } from './inflate.js?mxj=0.5.9';
 
 export function imageEndpoint(value) {
     const u = new URL(String(value || '').trim());
@@ -46,9 +46,7 @@ export function unzipImage(buffer) {
             if(flags&1 || rawSize>40*1024*1024 || local+30>b.length) throw new Error('图片压缩包不受支持');
             const start=local+30+v.getUint16(local+26,true)+v.getUint16(local+28,true);
             if(start+size>b.length) throw new Error('图片压缩包内容不完整');
-            const packed=b.subarray(start,start+size);
-            let bytes=null;
-            try { bytes=method===0?packed:method===8?inflateRaw(packed):null; } catch { throw new Error('图片解压失败，返回的压缩包可能不完整'); }
+            const packed=b.subarray(start,start+size); const bytes=method===0?packed:method===8?inflateRaw(packed):null;
             if(!bytes || bytes.length!==rawSize) throw new Error('图片解压失败');
             return new Blob([bytes],{type:/\.webp$/i.test(name)?'image/webp':/\.jpe?g$/i.test(name)?'image/jpeg':'image/png'});
         }
@@ -92,9 +90,7 @@ export async function requestImage(prompt,{negative='',portrait=false,signal}={}
 export async function compressImageForUpload(dataUrl,{pixelArt=false}={}) {
     const image=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=()=>reject(new Error('无法解码待压缩图片'));i.src=dataUrl;});
     const maxSide=pixelArt?1024:1600;
-    const longest=Math.max(image.naturalWidth,image.naturalHeight);
-    // 像素图只按整数倍缩小（1/2、1/3……），每个像素格大小一致，不会忽大忽小
-    const scale=pixelArt ? 1/Math.max(1,Math.ceil(longest/maxSide)) : Math.min(1,maxSide/longest);
+    const scale=Math.min(1,maxSide/Math.max(image.naturalWidth,image.naturalHeight));
     const canvas=document.createElement('canvas');
     canvas.width=Math.max(1,Math.round(image.naturalWidth*scale));
     canvas.height=Math.max(1,Math.round(image.naturalHeight*scale));
@@ -119,13 +115,9 @@ export async function saveImage(dataUrl, charName, {signal,pixelArt=false}={}) {
     const c=ctx();let headers=c.getRequestHeaders;
     if(typeof headers!=='function') try {headers=(await import('../../../../../script.js')).getRequestHeaders;}catch{}
     if(typeof headers!=='function') throw new Error('当前酒馆缺少图片保存所需能力，请更新酒馆');
-    // 文件夹名里去掉 # % ? 这类会让图片地址失效的字符
-    const folder=('梦想家_'+String(charName||'角色')).replace(/[\\/:*?"<>|#%&{}\[\]^`~]+/g,'_').replace(/\.{2,}/g,'_').replace(/\s+/g,' ').trim().slice(0,60)||'梦想家';
-    const response=await fetch('/api/images/upload',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({image:match[2],format:match[1]==='jpeg'?'jpg':match[1],ch_name:folder,filename:uid('mxj')}),signal});
+    const response=await fetch('/api/images/upload',{method:'POST',headers:{...headers(),'Content-Type':'application/json'},body:JSON.stringify({image:match[2],format:match[1]==='jpeg'?'jpg':match[1],ch_name:'梦想家_'+charName,filename:uid('mxj')}),signal});
     if(!response.ok) throw new Error(`图片保存失败（HTTP ${response.status}），当前预览仍保留，可重试保存`);
     const d=await response.json(); const path=String(d.path || '');
     if(!path || /^(?:[a-z]+:|\/\/)/i.test(path) || path.includes('..')) throw new Error('酒馆返回的图片路径无效');
-    const clean=path.startsWith('/')?path:'/'+path;
-    // 路径里有中文或空格时转成网址能用的写法
-    return clean.split('/').map(seg=>{try{return encodeURIComponent(decodeURIComponent(seg));}catch{return encodeURIComponent(seg);}}).join('/');
+    return path.startsWith('/')?path:'/'+path;
 }

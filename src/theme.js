@@ -1,7 +1,7 @@
 // 主题只在建家时确定；旧存档保持像素风。
 export const THEMES = [
     { id: 'scrapbook', name: '温暖复古手帐', note: '暖纸色、手绘感小人、柔和边框' },
-    { id: 'pixel', name: '精致像素', note: '像素小人、清晰边框、游戏感菜单' },
+    { id: 'pixel', name: '精致像素 · 海盐汽水', note: '像素小人、清晰边框、游戏感菜单' },
     { id: 'storybook', name: '乙女游戏绘本', note: '柔粉色、绘本感小人、浪漫卡片' },
 ];
 export function themeId(value) { return THEMES.some(t => t.id === value) ? value : 'pixel'; }

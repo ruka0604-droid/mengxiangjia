@@ -1,8 +1,8 @@
 // 梦想家 · 生成通道
 // 跟随当前 API：用酒馆的 generateRaw。
 // 副 API：和兔子镜一样全部经过酒馆后端转发，不从浏览器直连接口，也不会悄悄退回主 API。
-import { ctx, stripThinking } from './util.js?mxj=0.6.1';
-import { getSettings } from './settings.js?mxj=0.6.1';
+import { ctx, stripThinking } from './util.js?mxj=0.5.9';
+import { getSettings } from './settings.js?mxj=0.5.9';
 
 const ST_STATUS = '/api/backends/chat-completions/status';
 const ST_GENERATE = '/api/backends/chat-completions/generate';
@@ -154,47 +154,16 @@ export async function generate(req) {
         { role: 'system', content: req.system },
         { role: 'user', content: req.user },
     ];
-    if (req.signal?.aborted) throw abortError();
-    let task;
+    let text = '';
     if (s.generationSource === 'independent') {
-        if (String(s.independentConnectionProfileId || '').trim()) task = viaProfile(s, messages, req);
-        else task = viaManual(s, messages, req);
+        if (String(s.independentConnectionProfileId || '').trim()) text = await viaProfile(s, messages, req);
+        else text = await viaManual(s, messages, req);
     } else {
-        task = viaMainApi(messages, req);
+        text = await viaMainApi(messages, req);
     }
-    // 取消时立刻结束；主 API 没法中途停下，它的结果到了也不再使用、不会写进存档。
-    let text = await raceAbort(task, req.signal);
-    if (req.signal?.aborted) throw abortError();
     text = stripThinking(text);
     if (!text.trim()) throw new GenerationError('接口有回应，但没有拿到正文，可以再试一次。');
     return text;
-}
-
-function abortError() {
-    return new DOMException('已取消', 'AbortError');
-}
-
-function raceAbort(promise, signal) {
-    if (!signal) return promise;
-    return new Promise((resolve, reject) => {
-        const onAbort = () => reject(abortError());
-        if (signal.aborted) return onAbort();
-        signal.addEventListener('abort', onAbort, { once: true });
-        promise.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
-    });
-}
-
-// 主 API 的回复长度比这次需要的短时，临时放宽到需要的长度（酒馆生成完会自动改回去），避免长内容被截断。
-// 酒馆只有一个地方记「原来的长度」，两次放宽叠在一起会改不回去，所以上一次主 API 生成还没结束时不放宽。
-let mainApiRunning = 0;
-function mainApiResponseLength(c, isChat, wanted) {
-    if (!isChat || mainApiRunning > 0) return null;
-    const need = Math.min(4096, Number(wanted) || 2048);
-    const current = isChat
-        ? Number(c.chatCompletionSettings?.openai_max_tokens)
-        : Number(c.amount_gen ?? globalThis.amount_gen);
-    if (!Number.isFinite(current) || current <= 0) return null;
-    return current < need ? need : null;
 }
 
 async function viaMainApi(messages, req) {
@@ -202,19 +171,14 @@ async function viaMainApi(messages, req) {
     const fn = c.generateRaw;
     if (typeof fn !== 'function') throw new GenerationError('当前酒馆不支持直接调用主 API，请在设置里改用副 API。');
     const isChat = c.mainApi === 'openai';
-    const responseLength = mainApiResponseLength(c, isChat, req.maxTokens);
-    const extra = responseLength ? { responseLength } : {};
-    mainApiRunning++;
     try {
         const raw = isChat
-            ? await fn({ prompt: messages, api: c.mainApi, quietToLoud: false, trimNames: false, ...extra })
-            : await fn({ prompt: messages[1].content, systemPrompt: messages[0].content, api: c.mainApi, quietToLoud: false, trimNames: false, ...extra });
+            ? await fn({ prompt: messages, api: c.mainApi, quietToLoud: false, trimNames: false })
+            : await fn({ prompt: messages[1].content, systemPrompt: messages[0].content, api: c.mainApi, quietToLoud: false, trimNames: false });
         return String(raw ?? '');
     } catch (error) {
         if (req.signal?.aborted) throw error;
         throw new GenerationError(`主 API 生成失败：${redact(error?.message || error)}`);
-    } finally {
-        mainApiRunning--;
     }
 }
 
@@ -308,7 +272,9 @@ export function listConnectionProfiles() {
         .map(p => ({ id: p.id, name: p.name || p.id, model: p.model || '' }));
 }
 
-async function postStatus(body) {
+export async function fetchManualModels(baseUrl, key) {
+    const base = normalizeBase(baseUrl);
+    if (!base) throw new GenerationError('请先填写接口地址。');
     const linked = linkSignal(null, 30000);
     try {
         const response = await fetch(ST_STATUS, {
@@ -317,18 +283,14 @@ async function postStatus(body) {
             headers: await requestHeaders(),
             cache: 'no-cache',
             signal: linked.signal,
-            body: JSON.stringify(body),
+            body: JSON.stringify({ chat_completion_source: 'custom', custom_url: base, custom_include_headers: customHeaders(key) }),
         });
         if (!response.ok) throw new GenerationError(compactError(response.status, await response.text().catch(() => '')));
         const data = await response.json();
-        if (data?.error) {
-            const msg = typeof data.error === 'string' ? data.error : (data.error?.message || data.message || '');
-            throw new GenerationError(`拉取模型失败${msg ? `：${redact(msg).slice(0, 200)}` : '，请检查地址和 Key。'}`);
-        }
         const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : (Array.isArray(data?.models) ? data.models : []));
-        const ids = list.map(m => (typeof m === 'string' ? m : (m?.id || m?.name || ''))).map(x => String(x).trim()).filter(Boolean);
+        const ids = list.map(m => (typeof m === 'string' ? m : (m?.id || m?.name || ''))).filter(Boolean);
         if (!ids.length) throw new GenerationError('接口没有返回模型列表，可以直接手动填写模型 ID。');
-        return [...new Set(ids)].sort((a, b) => a.localeCompare(b));
+        return [...new Set(ids)].sort();
     } catch (error) {
         if (error instanceof GenerationError) throw error;
         if (error?.name === 'AbortError' || error?.name === 'TimeoutError') throw new GenerationError('拉取模型超过 30 秒，已停止。');
@@ -336,40 +298,6 @@ async function postStatus(body) {
     } finally {
         linked.done();
     }
-}
-
-export async function fetchManualModels(baseUrl, key) {
-    const base = normalizeBase(baseUrl);
-    if (!base) throw new GenerationError('请先填写接口地址。');
-    return postStatus({ chat_completion_source: 'custom', custom_url: base, custom_include_headers: customHeaders(key) });
-}
-
-// 用酒馆连接配置拉取模型：Key 留在酒馆后端，用配置里保存的 secret_id 读取。
-export async function fetchProfileModels(profileId) {
-    const c = ctx();
-    const profile = (c.extensionSettings?.connectionManager?.profiles || []).find(p => p?.id === profileId);
-    if (!profile) throw new GenerationError('找不到这个连接配置，点一下刷新再选。');
-    let source = '';
-    try {
-        source = c.ConnectionManagerRequestService?.validateProfile?.(profile)?.source || '';
-    } catch { /* 下面兜底 */ }
-    if (!source) source = String(profile.api || '').trim();
-    if (!source) throw new GenerationError('这个连接配置没有记录接口类型，请改用手动填写。');
-    const body = { chat_completion_source: source };
-    if (profile['secret-id']) body.secret_id = profile['secret-id'];
-    if (profile['api-url']) body.custom_url = profile['api-url'];
-    if (source === 'custom') body.custom_include_headers = '';
-    if (profile.proxy) {
-        try {
-            const mod = await import('../../../../openai.js');
-            const preset = (mod.proxies || []).find(x => x?.name === profile.proxy);
-            if (preset?.url) {
-                body.reverse_proxy = preset.url;
-                body.proxy_password = preset.password || '';
-            }
-        } catch { /* 没有代理预设就按直连 */ }
-    }
-    return postStatus(body);
 }
 
 export async function testConnection() {

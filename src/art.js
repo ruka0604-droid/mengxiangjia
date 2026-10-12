@@ -1,9 +1,9 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.6.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.1';
-import { homeTheme } from './theme.js?mxj=0.6.1';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.1';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.1';
+import { generate } from './api.js?mxj=0.5.9';
+import { gatherContext, contextBlock } from './character.js?mxj=0.5.9';
+import { homeTheme } from './theme.js?mxj=0.5.9';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.5.9';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.5.9';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -16,9 +16,9 @@ export const CHIBI_STYLES = Object.freeze({
     storybook: 'Polished Japanese otome-game chibi illustration, approximately 2 to 2.5 heads tall, handsome or beautiful as appropriate to the character, expressive eyes with layered highlights, delicate clean anime linework, softly shaded skin, layered hair, subtle gradients, refined costume details, elegant collectible character-standee quality, no pixel art',
     scrapbook: 'Full-color hand-drawn vintage scrapbook chibi illustration, attractive and age-appropriate, rounded compact chibi proportions, simple yet expressive face, slightly imperfect organic pencil-and-crayon outlines, soft paper-grain texture, harmonious warm hand-colored palette, nuanced flat color shading, delicate hair, clothing and accessory details, charming handmade cut-paper illustration, never monochrome or grayscale, not an unfinished sketch',
 });
-export const CHIBI_RULES = 'Single full-body character, entire head and feet visible, natural standing pose, front or slight three-quarter view, centered isolated character. Respect canonical gender identity and age, distinctive face, hairstyle, hair color, eye color, skin tone, clothing and accessories from the character card and worldbook. Chibi stylization only, do not turn an adult into a baby or toddler. Do not add beard, moustache, stubble, facial hair, body hair, animal ears or tail unless explicitly stated in the character setting. Do not invent costume changes. Transparent background if supported, no scenery, no typography';
+export const CHIBI_RULES = 'Single full-body character, entire head and feet visible, natural standing pose, front or slight three-quarter view, centered isolated character. Respect canonical gender identity and age, distinctive face, hairstyle, hair color, eye color, skin tone, clothing and accessories from the character card and worldbook. Chibi stylization only, do not turn an adult into a baby or toddler. Use only explicitly established distinctive physical traits. Do not invent costume changes. Transparent background if supported, no scenery, no typography';
 export const ART_NEGATIVE = 'text, watermark, logo, user interface, panels, buttons, collage, duplicated objects, blurry, low quality, distorted anatomy';
-export const CHIBI_NEGATIVE = 'baby, toddler, infant, infantilized adult, randomly changed gender, invented beard, invented moustache, invented stubble, invented body hair, invented animal ears, invented tail, missing feet, cropped body, grayscale, monochrome, text, watermark, blurry, deformed limbs, extra people';
+export const CHIBI_NEGATIVE = 'baby, toddler, infant, infantilized adult, randomly changed gender, missing feet, cropped body, grayscale, monochrome, text, watermark, blurry, deformed limbs, extra people';
 export function artTarget(home, kind, id) {
     return kind==='portrait' ? home : kind==='room' ? home?.house?.rooms.find(x=>x.id===id) : home?.house?.furniture.find(x=>x.id===id);
 }
@@ -39,7 +39,7 @@ export async function prepareArt(char,kind,id,{signal}={}) {
     const theme=homeTheme(home), info=await gatherContext(char);
     const subject=kind==='portrait'?`Character appearance confirmed by the user: ${home.appearance || info.char.description}`:kind==='room'?`Room: ${target.name}. ${target.note || ''}. House: ${home.house.story || ''}. Wall color: ${target.wall || home.house.palette.wall}. Floor color: ${target.floor || home.house.palette.floor}.`:`Furniture: ${target.name}; type: ${target.type}; color: ${target.color || home.house.palette.accent}.`;
     const text=await generate({system:kind==='portrait'
-        ? 'Extract a concise English visual description of THIS character from the character card, linked worldbook and user-confirmed appearance. Use canonical gender and age only if stated; do not assume male or female. If gender or age is unspecified or contradictory, keep it unspecified rather than guessing. Preserve explicit facial features, hairstyle, colors, clothing and accessories. Do not add facial hair, body hair, animal ears or tail unless explicitly stated. Do not infantilize an adult. Output plain English only, no markdown, no new invented features.'
+        ? 'Extract a concise English visual description of THIS character from the character card, linked worldbook and user-confirmed appearance. Use canonical gender and age only if stated; do not assume male or female. If gender or age is unspecified or contradictory, keep it unspecified rather than guessing. Preserve explicit facial features, hairstyle, colors, clothing and accessories. Include distinctive physical traits only when established by the character source. Do not infantilize an adult. Output plain English only, no markdown, no new invented features.'
         : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:`${contextBlock(info,{withRecent:false})}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650});
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     const prompt=artPrompt(theme,kind,text.replace(/```/g,'').trim(),getSettings().imageCutout && kind!=='room');
@@ -72,7 +72,5 @@ export async function acceptArt(char,draft,{signal}={}) {
     const path=await saveImage(draft.dataUrl,char.name || home.charName,{signal,pixelArt:draft.theme==='pixel'});
     if(signal?.aborted || getHome(char)?.house!==draft.house || artTarget(getHome(char),draft.kind,draft.id)!==target) throw new Error('保存期间小屋已改变，原素材未替换');
     target.art={path,theme:draft.theme,prompt:draft.generatedPrompt,negative:draft.generatedNegative,seed:draft.seed,model:draft.model,width:draft.width,height:draft.height,at:Date.now()};
-    // 新画的房间背景保存后直接显示（之前切到纯色墙地的也切回来）
-    if(draft.kind==='room') delete target.useArt;
     setHome(char,home);return target.art;
 }

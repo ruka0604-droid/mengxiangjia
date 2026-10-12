@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.6.1';
-import { getSettings } from './settings.js?mxj=0.6.1';
+import { ctx, clip } from './util.js?mxj=0.5.9';
+import { getSettings } from './settings.js?mxj=0.5.9';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -10,8 +10,8 @@ export function characterView(char) {
     const data = char?.data && typeof char.data === 'object' ? char.data : {};
     return {
         name: first(char?.name, data.name) || '他',
-        description: clip(first(char?.description, data.description), 2400),
-        personality: clip(first(char?.personality, data.personality), 1200),
+        description: clip(first(data.description, char?.description), 6000),
+        personality: clip(first(data.personality, char?.personality), 1600),
         scenario: clip(first(char?.scenario, data.scenario), 900),
         firstMes: clip(first(char?.first_mes, data.first_mes), 600),
     };
@@ -52,60 +52,46 @@ async function requestHeaders() {
 export async function characterWorldBookText(char, budget = 5000) {
     if (!getSettings().readCharacterWorldBook) return '';
     const rows = [];
+    const seen = new Set();
     const pushEntries = (book) => {
         const entries = book?.entries;
         if (!entries) return;
         const list = Array.isArray(entries) ? entries : Object.values(entries);
         for (const entry of list) {
             if (!entry || entry.enabled === false || entry.disable === true) continue;
-            const content = String(entry.content || '').trim();
+            const content = String(entry.content || entry.text || '').trim();
             if (!content) continue;
             const title = String(entry.comment || entry.name || entry.title || '').trim();
-            rows.push(title ? `【${title}】${content}` : content);
+            const row = title ? `【${title}】${content}` : content;
+            if (!seen.has(row)) { seen.add(row); rows.push(row); }
         }
     };
-    // 绑定了世界书就读绑定的那本（最新、开关状态也准）；读不到才用卡里内嵌的。
-    // 酒馆保存角色时会把绑定的世界书复制一份进卡里，两份都读会重复，还会把已关掉的条目读进来。
-    const embedded = char?.data?.character_book ?? char?.character_book;
-    const linkedName = String(char?.data?.extensions?.world || '').trim();
-    let linkedOk = false;
-    if (linkedName) {
-        const controller = new AbortController();
-        const timer = setTimeout(() => controller.abort(), 15000);
-        try {
-            const response = await fetch('/api/worldinfo/get', {
-                method: 'POST',
-                credentials: 'same-origin',
-                headers: await requestHeaders(),
-                body: JSON.stringify({ name: linkedName }),
-                signal: controller.signal,
-            });
-            if (response.ok) {
-                const book = await response.json();
-                const entries = book?.entries;
-                if (entries && Object.keys(entries).length) {
-                    pushEntries(book);
-                    linkedOk = true;
-                }
+    try {
+        const embedded = char?.data?.character_book ?? char?.character_book ?? char?.data?.extensions?.character_book;
+        const linkedName = String(char?.data?.extensions?.world || char?.extensions?.world || '').trim();
+        if (embedded) pushEntries(embedded);
+        if (linkedName) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 15000);
+            try {
+                const response = await fetch('/api/worldinfo/get', {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: await requestHeaders(),
+                    body: JSON.stringify({ name: linkedName }),
+                    signal: controller.signal,
+                });
+                if (response.ok) pushEntries(await response.json());
+            } finally {
+                clearTimeout(timer);
             }
-        } catch (error) {
-            console.debug('[梦想家] 读取绑定世界书失败，改用卡内嵌的世界书', error);
-        } finally {
-            clearTimeout(timer);
         }
+    } catch (error) {
+        console.debug('[梦想家] 读取绑定世界书失败，仍使用已读取的内嵌内容', error);
     }
-    if (!linkedOk && embedded) {
-        try {
-            pushEntries(embedded);
-        } catch (error) {
-            console.debug('[梦想家] 读取内嵌世界书失败，跳过', error);
-        }
-    }
-    const seen = new Set();
-    for (let i = rows.length - 1; i >= 0; i--) {
-        if (seen.has(rows[i])) rows.splice(i, 1);
-        else seen.add(rows[i]);
-    }
+    // 优先提供外貌相关条目，避免重要特征被世界书前面的长篇背景挤出预算。
+    const appearanceRe = /外貌|外观|容貌|长相|形象|发型|发色|瞳色|眼睛|眼眸|肤色|身高|体型|服装|衣着|穿着|特征|appearance|physical|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
+    rows.sort((a,b) => Number(appearanceRe.test(b.slice(0,240))) - Number(appearanceRe.test(a.slice(0,240))));
     let out = '';
     for (const row of rows) {
         if (out.length + row.length > budget) {
