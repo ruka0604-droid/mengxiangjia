@@ -2,7 +2,7 @@
 import { esc, uid, clip } from './util.js?mxj=0.5.7';
 import { getHome, setHome } from './settings.js?mxj=0.5.7';
 import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.5.7';
-import { recordChanges, suggestFurniture, furnitureFromText } from './home.js?mxj=0.5.7';
+import { recordChanges, suggestFurniture, furnitureFromText } from './home-decor.js?mxj=0.5.7';
 import { characterView } from './character.js?mxj=0.5.7';
 
 const ITEM_COLORS = ['#2F5D4E', '#B2584A', '#E2C38A', '#8FA9B8', '#6E4B30', '#F4F1EA', '#2A2A2A', '#D99A4E', '#9C7BB0', '#E8A0A8'];

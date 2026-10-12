@@ -8,13 +8,11 @@ import { getSettings, updateSettings, currentCharacter, characterKey, getHome, s
 import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.7';
 import { characterView, avatarUrl } from './character.js?mxj=0.5.7';
 import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.7';
-import {
-    HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse, NOTE_KINDS, NOTE_PLACES,
-    designHouse, createHome, comeHome, respond, postNote, replyToNote, writeCharNote,
-    markCharNotesRead, unreadFromChar, shouldAutoVisit, isAway,
-    getLook, setLook, generateLook,
-    WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary, shouldAutoDiary,
-} from './home.js?mxj=0.5.7';
+import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.5.7';
+import { designHouse, createHome, getLook, setLook, generateLook } from './home-house.js?mxj=0.5.7';
+import { comeHome, respond, shouldAutoVisit, isAway } from './home-visit.js?mxj=0.5.7';
+import { NOTE_KINDS, NOTE_PLACES, postNote, replyToNote, writeCharNote, markCharNotesRead, unreadFromChar } from './home-notes.js?mxj=0.5.7';
+import { WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary } from './home-diary.js?mxj=0.5.7';
 import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.5.7';
 import { createDecorator } from './decorate.js?mxj=0.5.7';
 
