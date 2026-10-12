@@ -460,6 +460,7 @@
 #mxj-root .mxj-places.is-two .mxj-place { min-height: 44px; font-size: 14px; }
 #mxj-root .mxj-card.is-dim h3 { color: var(--mxj-muted); }
 
+/* 扩展设置抽屉里的副 API 设置（用酒馆自己的样式） */
 
 /* 三主题基础层，字体全部使用系统字体。 */
 #mxj-root[data-theme="scrapbook"] {
@@ -565,7 +566,7 @@
 
 /* 浮窗在酒馆页面上独立显示；默认关闭，不占扩展管理页。 */
 #mxj-floating-entry {
- position:fixed !important; z-index:9000; width:56px !important; height:56px !important;
+ position:fixed !important; z-index:10001; width:56px !important; height:56px !important;
  min-width:56px !important; min-height:56px !important; padding:0 !important; margin:0 !important;
  display:flex; align-items:center; justify-content:center; overflow:visible;
  border:1px solid #BEA477 !important; border-radius:50% !important; background:rgba(255,245,221,.96) !important;
@@ -593,150 +594,82 @@
 #mxj-root[data-theme="pixel"] .mxj-tile,#mxj-root[data-theme="pixel"] .mxj-tab,#mxj-root[data-theme="pixel"] .mxj-tool {border-color:#579EB5;background:#FFF1D8}
 @media (pointer:coarse) {#mxj-root .mxj-tool,#mxj-root .mxj-chip,#mxj-root .mxj-tab {min-height:44px} #mxj-root .mxj-btn {min-height:44px}}
 
-/* 0.5.7 · 副 API 模型列表框：PC、手机浏览器、TT 同一套，长列表只在框里滚动 */
-#mxj-root .mxj-wrap { flex-wrap: wrap; }
-#mxj-root .mxj-model-box { gap: 8px; }
-#mxj-root .mxj-model-list {
-    display: flex; flex-direction: column;
-    max-height: min(280px, 42vh); max-height: min(280px, calc(var(--mxj-vh, 100dvh) * 0.42));
-    overflow-y: auto; overflow-x: hidden;
-    -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
-    border: 1px solid var(--mxj-line); border-radius: 12px; background: var(--mxj-white);
-}
-#mxj-root .mxj-model-item {
-    flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px;
-    width: 100%; min-height: 44px; margin: 0; padding: 8px 12px;
-    border: 0; border-bottom: 1px solid var(--mxj-line-soft); border-radius: 0;
-    background: transparent; color: var(--mxj-ink); box-shadow: none;
-    font-size: 14px; line-height: 1.35; text-align: left; cursor: pointer;
-    white-space: normal; word-break: break-all; touch-action: manipulation;
-}
-#mxj-root .mxj-model-item:last-child { border-bottom: 0; }
-#mxj-root .mxj-model-item[hidden] { display: none; }
-#mxj-root .mxj-model-item span { flex: 1; min-width: 0; }
-#mxj-root .mxj-model-item i { font-style: normal; font-weight: 700; color: var(--mxj-green); flex: none; }
-#mxj-root .mxj-model-item.is-on { background: var(--mxj-green-soft); font-weight: 600; }
-#mxj-root .mxj-model-item:focus-visible { outline: 2px solid var(--mxj-green); outline-offset: -2px; }
-#mxj-root .mxj-model-empty[hidden] { display: none; }
-#mxj-root[data-theme="pixel"] .mxj-model-list { border: 2px solid #579EB5; border-radius: 0; background: #FFF8E9; }
-#mxj-root[data-theme="pixel"] .mxj-model-item { color: #214B5D; }
-#mxj-root[data-theme="scrapbook"] .mxj-model-list { border-style: dashed; border-radius: 4px; background: #FFF9EA; }
-#mxj-root[data-theme="storybook"] .mxj-model-list { border-radius: 8px 16px; background: #FFFAF3; }
 
-/* 扩建与搬家的折叠栏 */
-#mxj-root .mxj-expand { background: var(--mxj-paper); border-radius: 16px; padding: 4px 14px 14px; display: block; }
-#mxj-root .mxj-expand > summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--mxj-ink); list-style-position: inside; }
-#mxj-root .mxj-expand[open] > summary { margin-bottom: 6px; }
-#mxj-root .mxj-expand > * + * { margin-top: 8px; }
-
-/* 面板内的确认框（TT 里系统弹窗不可靠） */
-#mxj-root .mxj-confirm {
-    position: absolute; inset: 0; z-index: 20;
-    display: flex; align-items: center; justify-content: center; padding: 20px;
-    background: rgba(18, 24, 21, .45);
+/* V0.5.8 · Taste Skill redesign pass. Scope strictly to the Dreams panel. */
+#mxj-root {
+ --mxj-ease:cubic-bezier(.22,1,.36,1);
+ --mxj-touch:44px;
 }
-#mxj-root .mxj-confirm-card {
-    width: 100%; max-width: 360px; background: var(--mxj-paper); color: var(--mxj-ink);
-    border-radius: 16px; padding: 18px 16px 14px; display: flex; flex-direction: column; gap: 14px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, .25);
+#mxj-root .mxj-window { isolation:isolate; }
+#mxj-root .mxj-top { min-height:76px; gap:12px; }
+#mxj-root .mxj-title { font-weight:650; letter-spacing:.015em; line-height:1.28; text-wrap:balance; }
+#mxj-root .mxj-subtitle { font-size:12px; line-height:1.55; opacity:.88; }
+#mxj-root .mxj-main { gap:14px; padding-bottom:max(22px,env(safe-area-inset-bottom)); }
+#mxj-root .mxj-card { gap:12px; padding:16px; }
+#mxj-root .mxj-card h3 { line-height:1.4; font-size:16px; font-weight:650; text-wrap:balance; }
+#mxj-root .mxj-card p { line-height:1.7; text-wrap:pretty; }
+#mxj-root .mxj-btn,#mxj-root .mxj-chip,#mxj-root .mxj-entry,#mxj-root .mxj-icon-btn,#mxj-root .mxj-size,#mxj-root .mxj-tab,#mxj-root .mxj-tool {
+ min-height:var(--mxj-touch); transition:background-color .2s var(--mxj-ease),border-color .2s var(--mxj-ease),box-shadow .2s var(--mxj-ease),transform .18s var(--mxj-ease),filter .18s var(--mxj-ease);
 }
-#mxj-root .mxj-confirm-card p { font-size: 15px; line-height: 1.6; }
-#mxj-root .mxj-btn.is-danger-solid { background: var(--mxj-red); border-color: var(--mxj-red); color: #FFFFFF; }
-#mxj-root .mxj-look-preview.is-art { display: block; }
-
-/* 0.6.1 · 设置页：分组折叠、开关、分段按钮、加减按钮 */
-    min-height: 44px; padding: 4px 2px; margin: 0; cursor: pointer;
-    border: 1px solid var(--mxj-line); border-radius: 10px;
-    background: var(--mxj-white); color: var(--mxj-ink); box-shadow: none;
-    font-size: 14px; white-space: nowrap; touch-action: manipulation;
+#mxj-root .mxj-btn:active:not(:disabled),#mxj-root .mxj-chip:active:not(:disabled),#mxj-root .mxj-entry:active:not(:disabled),#mxj-root .mxj-icon-btn:active:not(:disabled),#mxj-root .mxj-size:active:not(:disabled) { transform:translateY(1px) scale(.985); }
+#mxj-root :is(button,input,select,textarea,summary,[tabindex]):focus-visible { outline:3px solid var(--mxj-red); outline-offset:3px; }
+#mxj-root .mxj-input { line-height:1.5; transition:border-color .2s,box-shadow .2s; }
+#mxj-root .mxj-field { gap:7px; line-height:1.5; }
+#mxj-root .mxj-field > span { font-weight:600; }
+#mxj-root .mxj-entries { gap:7px; }
+#mxj-root .mxj-entry { min-height:76px; gap:7px; font-weight:600; position:relative; }
+#mxj-root .mxj-entry svg { width:23px; height:23px; }
+#mxj-root .mxj-entry[aria-current="page"] { border-color:var(--mxj-green); background:var(--mxj-green-soft); }
+#mxj-root .mxj-status { border-radius:12px; line-height:1.55; }
+#mxj-root .mxj-card details > summary { min-height:48px; font-weight:600; list-style:none; }
+#mxj-root .mxj-card details > summary::-webkit-details-marker { display:none; }
+#mxj-root .mxj-card details > summary::after { content:'＋'; margin-left:auto; padding-left:10px; font-size:19px; line-height:1; opacity:.7; }
+#mxj-root .mxj-card details[open] > summary::after { content:'−'; }
+#mxj-root .mxj-check { gap:14px; line-height:1.5; }
+#mxj-root .mxj-note-text,#mxj-root .mxj-diary-text { overflow-wrap:anywhere; }
+@media (hover:hover) {
+ #mxj-root .mxj-btn:hover:not(:disabled),#mxj-root .mxj-chip:hover:not(:disabled),#mxj-root .mxj-entry:hover:not(:disabled),#mxj-root .mxj-size:hover:not(:disabled) { filter:brightness(.97); transform:translateY(-1px); }
 }
-#mxj-root .mxj-sep { height: 1px; background: var(--mxj-line-soft); margin: 4px 0; }
-#mxj-root .mxj-card h3 + .mxj-switch-row { margin-top: -6px; }
-
-#mxj-root .mxj-switch-row { display: flex; align-items: center; gap: 12px; min-height: 48px; cursor: pointer; }
-#mxj-root .mxj-switch-row > .mxj-grow { display: flex; flex-direction: column; gap: 2px; }
-#mxj-root .mxj-switch-name { font-size: 14px; color: var(--mxj-ink); }
-#mxj-root input[type="checkbox"].mxj-switch {
-    position: relative; display: block; flex: none;
-    width: 48px; height: 28px; margin: 0 2px; padding: 0;
-    border: 2px solid var(--mxj-line); border-radius: 999px;
-    background: var(--mxj-white); cursor: pointer; transition: background .15s;
+@media (max-width:380px) {
+ #mxj-root .mxj-main { padding-left:9px; padding-right:9px; }
+ #mxj-root .mxj-card { padding:13px; }
+ #mxj-root .mxj-entry { font-size:11px; padding-left:1px; padding-right:1px; }
+ #mxj-root .mxj-entries { gap:4px; }
+ #mxj-root .mxj-two { grid-template-columns:1fr; }
 }
-#mxj-root input[type="checkbox"].mxj-switch::before {
-    content: ""; position: absolute; top: 2px; left: 2px;
-    width: 20px; height: 20px; border-radius: 50%;
-    background: var(--mxj-line); box-shadow: none; clip-path: none; transform: none;
-    transition: left .15s, background .15s;
+/* 01 / 复古手帐: 拼贴纸页、书签导航、胶带标签 */
+#mxj-root[data-theme="scrapbook"] .mxj-window { box-shadow:0 16px 42px #52391f36,inset 0 0 0 2px #f9edcf; }
+#mxj-root[data-theme="scrapbook"] .mxj-top { background:repeating-linear-gradient(90deg,#f4e7ce 0 20px,#f0e1c6 20px 21px); }
+#mxj-root[data-theme="scrapbook"] .mxj-main { background:radial-gradient(circle at 20% 0%,#f5e8d0 0,transparent 58%),#ead9bb; }
+#mxj-root[data-theme="scrapbook"] .mxj-card { box-shadow:2px 4px 0 #a18a6840,0 9px 20px #82694c12; }
+#mxj-root[data-theme="scrapbook"] .mxj-card h3 { font-family:var(--mxj-display); font-size:18px; }
+#mxj-root[data-theme="scrapbook"] .mxj-entries { background:#f2e3c6; border-top:2px dashed #b49a73; padding:12px 5px 5px; }
+#mxj-root[data-theme="scrapbook"] .mxj-entry { border-radius:7px 8px 3px 3px; box-shadow:1px 2px 0 #ab9471a6; }
+#mxj-root[data-theme="scrapbook"] .mxj-entry[aria-current="page"] { background:#647149; color:#fff7df; border-color:#647149; transform:rotate(-1deg); }
+#mxj-root[data-theme="scrapbook"] .mxj-btn.is-primary { box-shadow:2px 3px 0 #4c5935a3; }
+#mxj-root[data-theme="scrapbook"] .mxj-input { background:#fffaf0; border-style:dashed; }
+/* 02 / 海盐汽水: 像素游戏窗、方格层次、明确的选择态 */
+#mxj-root[data-theme="pixel"] .mxj-window { box-shadow:0 0 0 2px #102d3b,7px 8px 0 #0f2d3ba8; }
+#mxj-root[data-theme="pixel"] .mxj-top { background:linear-gradient(180deg,#579eb5 0%,#3b829a 100%); }
+#mxj-root[data-theme="pixel"] .mxj-main { background-color:#27677d; background-image:linear-gradient(#a5d5c50c 1px,transparent 1px),linear-gradient(90deg,#a5d5c50c 1px,transparent 1px); background-size:20px 20px; }
+#mxj-root[data-theme="pixel"] .mxj-card { border-width:3px; box-shadow:inset 0 0 0 2px #fff7e6,4px 4px 0 #164a60; }
+#mxj-root[data-theme="pixel"] .mxj-card h3 { font-family:ui-monospace,monospace; letter-spacing:.015em; }
+#mxj-root[data-theme="pixel"] .mxj-entry { border-radius:0; box-shadow:2px 3px 0 #164a60; }
+#mxj-root[data-theme="pixel"] .mxj-entry[aria-current="page"] { background:#579eb5; border-color:#fff1d8; color:#fff; box-shadow:inset 0 0 0 2px #27677d,2px 3px 0 #164a60; }
+#mxj-root[data-theme="pixel"] .mxj-btn:active:not(:disabled),#mxj-root[data-theme="pixel"] .mxj-entry:active:not(:disabled) { box-shadow:inset 2px 2px 0 #164a60; }
+#mxj-root[data-theme="pixel"] .mxj-status.is-toast { background:#a5d5c5; color:#164a60; }
+/* 03 / 乙女绘本: 章节页、柔和纸面、优雅的主操作 */
+#mxj-root[data-theme="storybook"] .mxj-window { border-color:#c797a2; box-shadow:0 16px 45px #79465d38; }
+#mxj-root[data-theme="storybook"] .mxj-top { background:radial-gradient(ellipse at 86% 0%,#fff8ee 0%,transparent 60%),linear-gradient(120deg,#fff2e8,#ead2d9); }
+#mxj-root[data-theme="storybook"] .mxj-main { background:radial-gradient(circle at 90% 12%,#fff4e866,transparent 38%),linear-gradient(180deg,#f1dfe0,#e8cdd3); }
+#mxj-root[data-theme="storybook"] .mxj-card { border-radius:10px 24px 12px 20px; box-shadow:0 8px 20px #a66b7020; }
+#mxj-root[data-theme="storybook"] .mxj-card h3 { font-family:var(--mxj-display); font-size:19px; font-weight:600; }
+#mxj-root[data-theme="storybook"] .mxj-title { font-family:var(--mxj-display); letter-spacing:.07em; }
+#mxj-root[data-theme="storybook"] .mxj-entries { border-top:1px solid #c79a91; background:#f7e8e7aa; padding:10px 3px 3px; }
+#mxj-root[data-theme="storybook"] .mxj-entry { border-radius:13px 13px 6px 6px; background:#fff7ee; }
+#mxj-root[data-theme="storybook"] .mxj-entry[aria-current="page"] { background:#ad7282; border-color:#ad7282; color:#fff8ee; box-shadow:0 3px 10px #a36e802f; }
+#mxj-root[data-theme="storybook"] .mxj-btn.is-primary { background:linear-gradient(125deg,#bc8490,#925968); box-shadow:0 3px 9px #9b66762d; }
+#mxj-root[data-theme="storybook"] .mxj-input { border-radius:9px 13px; }
+@media (prefers-reduced-motion:reduce) {
+ #mxj-root .mxj-btn,#mxj-root .mxj-chip,#mxj-root .mxj-entry,#mxj-root .mxj-icon-btn,#mxj-root .mxj-size { transition:none!important; transform:none!important; }
 }
-#mxj-root input[type="checkbox"].mxj-switch:checked { background: var(--mxj-green); border-color: var(--mxj-green); }
-#mxj-root input[type="checkbox"].mxj-switch:checked::before { left: 22px; background: #FFFFFF; transform: none; }
-
-#mxj-root .mxj-seg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 2px solid var(--mxj-green); border-radius: 10px; overflow: hidden; }
-#mxj-root .mxj-seg button {
-    min-height: 44px; margin: 0; padding: 4px 6px; border: 0; border-radius: 0; box-shadow: none;
-    background: var(--mxj-white); color: var(--mxj-ink); font-size: 14px; cursor: pointer; touch-action: manipulation;
-}
-#mxj-root .mxj-seg button.is-on { background: var(--mxj-green); color: var(--mxj-paper); font-weight: 600; }
-#mxj-root .mxj-seg button:focus-visible { outline: 2px solid var(--mxj-red); outline-offset: -3px; }
-
-#mxj-root .mxj-stepper { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 48px; font-size: 14px; color: var(--mxj-ink); }
-#mxj-root .mxj-stepper-box { display: flex; align-items: center; border: 2px solid var(--mxj-line); border-radius: 10px; background: var(--mxj-white); overflow: hidden; }
-#mxj-root .mxj-stepper-box button {
-    width: 44px; height: 44px; margin: 0; padding: 0; border: 0; border-radius: 0; box-shadow: none;
-    background: transparent; color: var(--mxj-green); font-size: 20px; line-height: 1; cursor: pointer; touch-action: manipulation;
-}
-#mxj-root .mxj-stepper-box .mxj-input {
-    width: 56px; min-height: 44px; height: 44px; margin: 0; padding: 0 2px;
-    border: 0; border-radius: 0; background: transparent; box-shadow: none;
-    text-align: center; font-size: 15px; -moz-appearance: textfield; appearance: textfield;
-}
-#mxj-root .mxj-stepper-box .mxj-input::-webkit-outer-spin-button,
-#mxj-root .mxj-stepper-box .mxj-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-#mxj-root .mxj-stepper-unit { font-size: 13px; color: var(--mxj-muted); padding-right: 2px; }
-
-/* 像素：方角、粗边 */
-#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch,
-#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch::before { border-radius: 0; }
-#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch { border-color: #579EB5; background: #FFF8E9; }
-#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch::before { background: #8AA9B4; }
-#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch:checked { border-color: #27677D; background: #579EB5; }
-#mxj-root[data-theme="pixel"] input[type="checkbox"].mxj-switch:checked::before { background: #FFFFFF; }
-#mxj-root[data-theme="pixel"] .mxj-seg { border-color: #579EB5; border-radius: 0; }
-#mxj-root[data-theme="pixel"] .mxj-seg button { background: #FFF8E9; color: #27677D; }
-#mxj-root[data-theme="pixel"] .mxj-seg button.is-on { background: #579EB5; color: #FFFFFF; }
-#mxj-root[data-theme="pixel"] .mxj-stepper-box { border-color: #579EB5; border-radius: 0; background: #FFF8E9; }
-#mxj-root[data-theme="pixel"] .mxj-stepper-box button { color: #27677D; }
-#mxj-root[data-theme="pixel"] .mxj-sep { background: #A5D5C5; }
-/* 手帐、绘本：跟各自的纸色和圆角 */
-#mxj-root[data-theme="storybook"] .mxj-seg, #mxj-root[data-theme="storybook"] .mxj-stepper-box { border-radius: 18px; }
-#mxj-root[data-theme="storybook"] .mxj-sep { display: none; }
-
-#mxj-root .mxj-group { padding: 0; gap: 0; }
-#mxj-root .mxj-group-head {
-    display: flex; align-items: center; gap: 10px; width: 100%; min-height: 60px; margin: 0;
-    padding: 10px 14px; border: 0; border-radius: inherit; background: transparent; box-shadow: none;
-    text-align: left; color: var(--mxj-ink); cursor: pointer; touch-action: manipulation;
-}
-#mxj-root .mxj-group-head > .mxj-grow { display: flex; flex-direction: column; gap: 2px; }
-#mxj-root .mxj-group-title { font-size: 16px; font-weight: 700; color: var(--mxj-ink); }
-#mxj-root .mxj-group-sum { font-size: 12px; line-height: 1.45; color: var(--mxj-muted); word-break: break-all; }
-#mxj-root .mxj-group-head svg { width: 18px; height: 18px; fill: none; stroke: var(--mxj-green); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
-#mxj-root .mxj-group.is-open .mxj-group-head svg { transform: rotate(180deg); }
-#mxj-root .mxj-group-head:focus-visible { outline: 2px solid var(--mxj-red); outline-offset: -3px; }
-#mxj-root .mxj-group-body { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 16px; border-top: 1px dashed var(--mxj-line-soft); }
-#mxj-root .mxj-group-flat { padding: 6px 8px 6px 14px; }
-#mxj-root .mxj-group-flat .mxj-switch-name { font-size: 16px; font-weight: 700; }
-#mxj-root .mxj-danger {
-    display: flex; align-items: center; gap: 10px; margin-top: 8px; padding: 8px 6px 8px 14px;
-    border: 2px dashed var(--mxj-red); border-radius: 12px; font-size: 13px; color: var(--mxj-red);
-}
-#mxj-root .mxj-danger-btn {
-    min-height: 44px; margin: 0; padding: 0 12px; border: 0; background: transparent; box-shadow: none;
-    color: var(--mxj-red); font-size: 15px; font-weight: 700; white-space: nowrap; cursor: pointer;
-}
-#mxj-root[data-theme="pixel"] .mxj-group-sum { color: #547989; }
-#mxj-root[data-theme="pixel"] .mxj-group-head svg { stroke: #27677D; }
-#mxj-root[data-theme="pixel"] .mxj-group-body { border-top-color: #A5D5C5; }
-#mxj-root[data-theme="pixel"] .mxj-danger { border-color: #E7A08F; border-radius: 0; color: #FFE3D8; }
-#mxj-root[data-theme="pixel"] .mxj-danger-btn { color: #FFC2B2; }
-#mxj-root[data-theme="storybook"] .mxj-danger { border-radius: 18px; }

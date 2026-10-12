@@ -1,7 +1,7 @@
-import { mountFloating, refreshFloating, destroyFloating } from './src/floating.js?mxj=0.6.1';
+import { mountFloating, refreshFloating, destroyFloating } from './src/floating.js?mxj=0.5.9';
 // 梦想家 · 入口：魔法棒菜单 + 可选浮窗
-import { getSettings } from './src/settings.js?mxj=0.6.1';
-import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.6.1';
+import { getSettings } from './src/settings.js?mxj=0.5.9';
+import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.5.9';
 
 const WAND_ID = 'mxj_wand_entry';
 const ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
@@ -9,11 +9,9 @@ const ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke
 let uiModule = null;
 let clickHandler = null;
 let chatHandler = null;
-let initialized = false;
 
 async function loadUi() {
-    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.6.1');
-    uiModule.revive?.();
+    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.5.9');
     return uiModule;
 }
 
@@ -62,8 +60,6 @@ function installWandEntry() {
 }
 
 function init() {
-    if (initialized) return;
-    initialized = true;
     getSettings();
     installWandEntry();
     // 清理旧版可能留下的扩展设置面板，不影响其他扩展。
@@ -86,28 +82,16 @@ function init() {
     }
 }
 
-// 在扩展管理里重新启用时（不刷新页面）再装回入口
-export function onEnable() {
-    try {
-        init();
-    } catch (error) {
-        console.error(LOG_PREFIX, '启用失败', error);
-    }
-}
-
 export function onDisable() {
-    initialized = false;
     document.getElementById(WAND_ID)?.remove();
     document.getElementById('mxj_settings_drawer')?.remove();
     destroyFloating();
     if (clickHandler) document.removeEventListener('click', clickHandler, true);
-    clickHandler = null;
     const c = ctx();
     const types = c.eventTypes || c.event_types;
     if (chatHandler && c.eventSource && types?.CHAT_CHANGED) {
         (c.eventSource.removeListener || c.eventSource.off)?.call(c.eventSource, types.CHAT_CHANGED, chatHandler);
     }
-    chatHandler = null;
     uiModule?.destroy?.();
 }
 
