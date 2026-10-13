@@ -1,7 +1,7 @@
 // 梦想家独立生图连接。图片直接请求使用者配置的服务，不读取其他扩展。
-import { getSettings } from './settings.js?mxj=0.6.10';
-import { ctx, uid } from './util.js?mxj=0.6.10';
-import { inflateRaw } from './inflate.js?mxj=0.6.10';
+import { getSettings } from './settings.js?mxj=0.6.11';
+import { ctx, uid } from './util.js?mxj=0.6.11';
+import { inflateRaw } from './inflate.js?mxj=0.6.11';
 
 export function imageEndpoint(value) {
     const u = new URL(String(value || '').trim());
@@ -9,6 +9,28 @@ export function imageEndpoint(value) {
     if (!/\/generate-image\/?$/.test(u.pathname)) u.pathname = u.pathname.replace(/\/$/, '').replace(/\/ai$/, '') + '/ai/generate-image';
     return u.href;
 }
+// 4 代及以后的模型只认结构化描述，选成「基础描述」会直接报 500
+export function needsStructured(model) {
+    return /diffusion-(?:[4-9]|\d{2,})/i.test(String(model || ''));
+}
+// Key 前面多粘了「Bearer」、带了空格换行，都整理掉
+export function cleanImageKey(key) {
+    return String(key || '').replace(/^\s*bearer\s+/i, '').replace(/\s+/g, '');
+}
+// 填写检查：看得出明显填错的地方就直接说
+export function imageConfigProblems(s) {
+    const out = [];
+    try { imageEndpoint(s.imageBaseUrl); } catch { out.push('API 地址不是有效的网址（要以 https:// 开头）'); }
+    const key = cleanImageKey(s.imageKey);
+    if (!key) out.push('还没填 API Key');
+    else if (/[^\x21-\x7e]/.test(key)) out.push('API Key 里有中文或全角字符，可能粘错了');
+    const model = String(s.imageModel || '').trim();
+    if (!model) out.push('还没填模型 ID');
+    else if (/\s|[^\x21-\x7e]/.test(model)) out.push(`模型 ID「${model}」里有空格或中文，不像服务给的英文 ID。要填服务文档里的完整模型 ID，不是网站上显示的名字`);
+    if (s.imagePromptFormat !== 'structured' && needsStructured(model)) out.push('这个模型要用「结构化描述」，插件生图时会自动按结构化描述发送');
+    return out;
+}
+
 export function imageRequest(s, prompt, negative, portrait = false) {
     const seed = Number(s.imageSeed) || crypto.getRandomValues(new Uint32Array(1))[0];
     const width = Number(portrait ? s.imagePortraitWidth : s.imageWidth);
@@ -22,7 +44,7 @@ export function imageRequest(s, prompt, negative, portrait = false) {
         negative_prompt: negative, ucPreset: 0, qualityToggle: false,
     };
     // 新版模型的描述字段，旧版模型保持原请求格式；使用者可选择。
-    if (s.imagePromptFormat === 'structured') {
+    if (s.imagePromptFormat === 'structured' || needsStructured(s.imageModel)) {
         parameters.params_version = 3;
         parameters.v4_prompt = { caption: {base_caption: prompt, char_captions: []}, use_coords: false, use_order: true };
         parameters.v4_negative_prompt = {caption: {base_caption: negative, char_captions: []}, legacy_uc: false};
@@ -124,11 +146,18 @@ export async function requestImage(prompt,{negative='',portrait=false,signal}={}
     if(!s.imageBaseUrl || !s.imageKey || !s.imageModel) throw new Error('请先填写生图地址、密钥和模型 ID');
     const body=imageRequest(s,prompt,negative,portrait);
     let response;
-    try { response=await fetch(imageEndpoint(s.imageBaseUrl),{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json',Authorization:`Bearer ${s.imageKey.trim()}`},body:JSON.stringify(body),signal}); }
-    catch(e){if(signal?.aborted) throw e; throw new Error('生图服务无法连接。请核对地址、网络及服务的跨域支持。');}
+    try { response=await fetch(imageEndpoint(s.imageBaseUrl),{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json',Authorization:`Bearer ${cleanImageKey(s.imageKey)}`},body:JSON.stringify(body),signal}); }
+    catch(e){if(signal?.aborted) throw e; throw new Error('连不上生图服务，请求没发出去。常见原因：网络或代理不通（手机上可以开关一下代理再试）；API 地址填错了（填服务的网址就行，插件会自动补上生图路径）；这个地址不允许从浏览器直接访问。');}
     if(!response.ok) {
         const reason=await errorReason(response);
-        const head=response.status===429?'生图服务限流，请稍后手动重试':response.status===401||response.status===403?'生图鉴权失败，请检查密钥和权限':response.status===400?'生图请求被拒绝（HTTP 400），请核对模型 ID 和描述格式':response.status>=500?`生图服务出错（HTTP ${response.status}），请核对描述格式后重试`:`生图请求失败（HTTP ${response.status}），请核对模型和参数`;
+        const st=response.status;
+        const head=st===401||st===403?`生图鉴权失败（HTTP ${st}）：API Key 不对或已失效。要填服务给的持久令牌，不是登录密码`
+            :st===402?'生图额度不够（HTTP 402）：账号余额不足，或这次的尺寸、步数超出了免费范围。可以在设置的「画幅与高级参数」里把尺寸、步数调小再试'
+            :st===404?'生图地址不对（HTTP 404）：API 地址填服务的网址就行，插件会自动补上生图路径'
+            :st===409||st===429?`生图服务正忙（HTTP ${st}）：同一个账号同时只能画一张，网页上也在画的话会冲突。稍等一会儿再点「绘制一张」`
+            :st===400?'生图请求被拒绝（HTTP 400）：多半是模型 ID 填错了，要填服务文档里的完整模型 ID'
+            :st>=500?(s.imagePromptFormat!=='structured'?`生图服务出错（HTTP ${st}）：描述格式请改成「结构化描述」再试`:`生图服务出错（HTTP ${st}），可以稍后再试一次`)
+            :`生图请求失败（HTTP ${st}）`;
         throw new Error(reason?`${head}。服务说：${reason}`:head);
     }
     const blob=await decodeImage(response);

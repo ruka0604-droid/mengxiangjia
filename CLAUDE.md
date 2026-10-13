@@ -108,6 +108,7 @@ EOF
 - 副 API 的模型列表：手动接口和酒馆连接配置都能拉（`fetchManualModels` / `fetchProfileModels`），结果缓存在 `independentModelCache`。
 - `generate()` 会拦下接口当成正文返回的「内容审核拒绝 / 报错」（`api.js` 的 `REFUSAL_RE`），抛错不保存——这算「没有正文」，不违反「不加让生成失败的校验」那条；模型只是格式不对、缺字段时仍然兜底。
 - 要看外貌的生成（盖房子、定小人外形、画人物）用 `gatherContext(char, { worldBookBudget: 18000 })` 多读世界书；世界书里讲外貌的条目会排在前面。
+- 画人物准备提示词：确认过外貌（`home.appearance`）就只发确认的外貌，不发角色卡和世界书（成人内容常让文字接口整条拒绝）；没确认才读卡和世界书。生图错误按状态码给出说明（`imageApi.js` 的 `requestImage`），4 代以后的模型自动按结构化描述发（`needsStructured`），Key 自动去掉「Bearer」和空白（`cleanImageKey`），填写检查在 `imageConfigProblems`。用户都用 NovelAI，界面里仍然不写服务名、模型名。
 - 生图模型列表：`imageApi.js` 的 `fetchImageModels`，结果只放在 `state.imageModels`（不存档）；生图出错时 `errorReason()` 把服务给的原因带出来并隐藏 Key。
 - 2026-10-13 另一条开发线（网页上传的 0.5.8–0.5.16、0.5.1-stable2）已并入 0.6.2。没并的：回家后为漏掉的纸条/日记再单独补发请求（违反「调用次数」），回家事件/回应/日记缺字段就报错（违反「兜底」），人物生图不用确认的外貌、改用正则提取（会绕过用户确认的外貌），「保存全部设置」按钮（0.6.1 已修好设置丢失的根本原因）。
 

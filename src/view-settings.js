@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.6.10';
-import { imageEndpoint, imageRequest, fetchImageModels } from './imageApi.js?mxj=0.6.10';
-import { esc } from './util.js?mxj=0.6.10';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.10';
-import { characterView } from './character.js?mxj=0.6.10';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.10';
-import { ICON } from './ui-common.js?mxj=0.6.10';
+import { refreshFloating } from './floating.js?mxj=0.6.11';
+import { imageRequest, fetchImageModels, imageConfigProblems } from './imageApi.js?mxj=0.6.11';
+import { esc } from './util.js?mxj=0.6.11';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.11';
+import { characterView } from './character.js?mxj=0.6.11';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.11';
+import { ICON } from './ui-common.js?mxj=0.6.11';
 
 let app = null;
 let state = null;
@@ -112,10 +112,11 @@ export function setup(a) {
             'image-check'() {
                 void run('检查生图配置…', async () => {
                     const cfg = getSettings();
-                    imageEndpoint(cfg.imageBaseUrl);
-                    if (!cfg.imageKey || !cfg.imageModel) throw new Error('请填写密钥和模型 ID');
+                    const problems = imageConfigProblems(cfg);
+                    const blocking = problems.filter(p => !p.includes('自动按结构化描述'));
+                    if (blocking.length) throw new Error(problems.join('；'));
                     imageRequest(cfg, 'configuration check', '', false);
-                    flash('填写格式有效；尚未验证鉴权或实际出图');
+                    flash(problems.length ? `${problems.join('；')}。其他填写没看出问题，Key 对不对要画一张才知道` : '填写没看出问题；Key 对不对、额度够不够，要画一张才知道');
                 });
             },
             demolish(el, char) {

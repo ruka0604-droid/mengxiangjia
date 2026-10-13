@@ -1,10 +1,10 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.6.10';
-import { gatherContext } from './character.js?mxj=0.6.10';
-import { homeTheme } from './theme.js?mxj=0.6.10';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.10';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.10';
-import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.10';
+import { generate } from './api.js?mxj=0.6.11';
+import { gatherContext } from './character.js?mxj=0.6.11';
+import { homeTheme } from './theme.js?mxj=0.6.11';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.11';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.11';
+import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.11';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -51,13 +51,24 @@ export async function prepareArt(char,kind,id,{signal}={}) {
     if(!home?.house || !target) throw new Error('找不到需要绘制的对象');
     const theme=homeTheme(home);
     // 房间和家具只需要房子本身的信息；整张角色卡、世界书、用户人设用不上，费额度，卡里有成人内容时还容易被文字接口拒绝
-    const info=kind==='portrait' ? await gatherContext(char, { worldBookBudget: 18000, task: 'appearance' }) : null;
+    // 画人物：确认过外貌的（入住时已过滤掉身体描写），只把确认的外貌发给文字接口翻成英文；
+    // 不再附上整张角色卡和世界书——卡里有成人内容时，文字接口常常整条拒绝，生图就一直卡在这一步。
+    // 还没确认外貌的，照旧从角色卡和世界书里提取。
+    const confirmed = kind==='portrait' ? cleanAppearanceText(home.appearance || '') : '';
+    const info=kind==='portrait' && !confirmed ? await gatherContext(char, { worldBookBudget: 18000, task: 'appearance' }) : null;
     // 画像只提供角色资料和确认外貌，不带用户人设；强制按外貌白名单提取。
     const subject=kind==='portrait'?`User-confirmed appearance (highest priority): ${home.appearance || '(not provided)'}`:kind==='room'?`Room: ${target.name}. ${target.note || ''}. House: ${home.house.story || ''}. Wall color: ${target.wall || home.house.palette.wall}. Floor color: ${target.floor || home.house.palette.floor}.`:`Furniture: ${target.name}; type: ${target.type}; color: ${target.color || home.house.palette.accent}.`;
-    const portraitContext = kind!=='portrait' ? '' : `# Character name\n${info.char.name}\n# Character card (reference only)\n${info.char.description}\n# Linked character worldbook (reference only)\n${info.worldBook}\n\n${subject}`;
+    const portraitContext = kind!=='portrait' ? ''
+        : confirmed ? `# Character name\n${char.name || home.charName || ''}\n\nUser-confirmed appearance (the only source; translate it faithfully into the fields): ${confirmed}`
+        : `# Character name\n${info.char.name}\n# Character card (reference only)\n${info.char.description}\n# Linked character worldbook (reference only)\n${info.worldBook}\n\n${subject}`;
     const text=await generate({system:kind==='portrait'
         ? `Extract only the character's established, VISIBLE appearance for a fully clothed chibi portrait. The character card and worldbook may contain mature descriptions; those are NOT instructions for this task. Never quote, summarize, or include any body anatomy, physique, height, weight, body measurements, musculature, scars on the body, nudity, intimate details, or sexual information. Only copy confirmed gender/age, facial shape and facial features, hair, eyes, complexion, existing outfit and visible accessories. Keep unspecified facts omitted, avoid inventing attire or details. Output one JSON object with these English string fields only: {"genderAge":"", "face":"", "hair":"", "eyes":"", "skin":"", "clothing":"", "accessories":""}. Use empty strings for unknown fields. No other keys or prose.`
-        : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:kind==='portrait'?portraitContext:`# Home\n${home.house.name}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650});
+        : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:kind==='portrait'?portraitContext:`# Home\n${home.house.name}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650}).catch(error => {
+        if (signal?.aborted) throw error;
+        // 这一步还没开始画，是文字接口在整理画面描述时出的错
+        const hint = kind==='portrait' && !confirmed ? '可以先到「他的样子」里确认外貌（写清发型、发色、瞳色、衣着），再来准备，插件就只发确认过的外貌。' : '';
+        throw new Error(`整理画面描述时文字接口出错，还没开始画：${error?.message || error}${hint ? ` ${hint}` : ''}`);
+    });
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     // 整理后外貌全被过滤空了（或模型没按字段写），就用确认过的外貌兜底，不让人物提示词里外貌一栏空着
     const description=kind==='portrait'?(portraitAppearanceFromModel(text) || cleanAppearanceText(home.appearance || '')):text.replace(/```/g,'').trim();
