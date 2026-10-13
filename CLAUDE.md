@@ -104,6 +104,10 @@ EOF
 
 - 所有生成都走 `api.js` 的 `generate()`：取消后直接结束，结果不会写进存档；等完再写之前用 `home-shared.js` 的 `liveHome(char)` 确认家还在。
 - 副 API 的模型列表：手动接口和酒馆连接配置都能拉（`fetchManualModels` / `fetchProfileModels`），结果缓存在 `independentModelCache`。
+- `generate()` 会拦下接口当成正文返回的「内容审核拒绝 / 报错」（`api.js` 的 `REFUSAL_RE`），抛错不保存——这算「没有正文」，不违反「不加让生成失败的校验」那条；模型只是格式不对、缺字段时仍然兜底。
+- 要看外貌的生成（盖房子、定小人外形、画人物）用 `gatherContext(char, { worldBookBudget: 18000 })` 多读世界书；世界书里讲外貌的条目会排在前面。
+- 生图模型列表：`imageApi.js` 的 `fetchImageModels`，结果只放在 `state.imageModels`（不存档）；生图出错时 `errorReason()` 把服务给的原因带出来并隐藏 Key。
+- 2026-10-13 另一条开发线（网页上传的 0.5.8–0.5.16、0.5.1-stable2）已并入 0.6.2。没并的：回家后为漏掉的纸条/日记再单独补发请求（违反「调用次数」），回家事件/回应/日记缺字段就报错（违反「兜底」），人物生图不用确认的外貌、改用正则提取（会绕过用户确认的外貌），「保存全部设置」按钮（0.6.1 已修好设置丢失的根本原因）。
 
 ## 调用次数
 

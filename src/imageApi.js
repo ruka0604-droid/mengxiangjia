@@ -1,7 +1,7 @@
 // 梦想家独立生图连接。图片直接请求使用者配置的服务，不读取其他扩展。
-import { getSettings } from './settings.js?mxj=0.6.1';
-import { ctx, uid } from './util.js?mxj=0.6.1';
-import { inflateRaw } from './inflate.js?mxj=0.6.1';
+import { getSettings } from './settings.js?mxj=0.6.2';
+import { ctx, uid } from './util.js?mxj=0.6.2';
+import { inflateRaw } from './inflate.js?mxj=0.6.2';
 
 export function imageEndpoint(value) {
     const u = new URL(String(value || '').trim());
@@ -70,6 +70,52 @@ export async function decodeImage(response) {
     }
     return unzipImage(await response.arrayBuffer());
 }
+// 服务拒绝时通常会写明原因（比如模型名不对），取出来给使用者看；去掉密钥样子的内容
+async function errorReason(response) {
+    let raw='';
+    try { raw=await response.text(); } catch { return ''; }
+    let msg=raw;
+    try { const j=JSON.parse(raw); msg=j?.message||j?.error?.message||(typeof j?.error==='string'?j.error:'')||j?.detail||''; } catch { if(/<html|<!doctype/i.test(raw)) msg=''; }
+    return String(msg||'').replace(/Bearer\s+\S+/gi,'Bearer [已隐藏]').replace(/\b(?:sk|pst)-[A-Za-z0-9_\-]{6,}/g,'[已隐藏]').replace(/\s+/g,' ').trim().slice(0,200);
+}
+
+// 拉取生图模型列表：根地址、/v1 地址、完整生图地址都可以；不改动已保存的地址。
+// 很多生图服务不提供模型列表或不允许浏览器直接访问，这时手动填模型 ID。
+export async function fetchImageModels(baseUrl, apiKey) {
+    let url;
+    try { url = new URL(String(baseUrl || '').trim()); }
+    catch { throw new Error('请先填写有效的生图 API 地址'); }
+    if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password) throw new Error('生图 API 地址格式不正确');
+    if (url.search || url.hash) throw new Error('请使用不含查询参数的 API 地址拉取模型');
+    let path = url.pathname.replace(/\/+$/, '');
+    path = path.replace(/\/(?:ai\/generate-image|images\/generations|generate-image|generate|models)\/?$/i, '');
+    const bases = [path];
+    if (/\/v1$/i.test(path)) bases.push(path.replace(/\/v1$/i, ''));
+    else bases.push(path + '/v1');
+    const candidates = [...new Set(bases.map(p => url.origin + (p || '') + '/models'))];
+    const failures = [];
+    for (const endpoint of candidates) {
+        try {
+            const response = await fetch(endpoint, {
+                method: 'GET', credentials: 'omit', redirect: 'follow',
+                headers: apiKey ? { Authorization: `Bearer ${String(apiKey).trim()}`, Accept: 'application/json' } : { Accept: 'application/json' },
+            });
+            const raw = await response.text();
+            if (/<\s*(?:!doctype|html|head|body)\b/i.test(raw.slice(0, 400))) { failures.push('返回网页而非模型数据'); continue; }
+            if (!response.ok) { failures.push(`HTTP ${response.status}`); continue; }
+            let payload;
+            try { payload = JSON.parse(raw); } catch { failures.push('返回内容不是有效 JSON'); continue; }
+            const entries = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.models) ? payload.models : Array.isArray(payload) ? payload : [];
+            const models = [...new Set(entries.map(m => typeof m === 'string' ? m : (m?.id || m?.name || '')).filter(Boolean))];
+            if (models.length) return models;
+            failures.push('返回了 JSON，但没有可识别的模型列表');
+        } catch (error) {
+            failures.push(error instanceof TypeError ? '浏览器网络或跨域访问失败' : String(error?.message || '请求失败'));
+        }
+    }
+    throw new Error(`没能拉到生图模型（试了 ${candidates.length} 个常见地址）：${[...new Set(failures)].join('；')}。这个服务可能不提供模型列表，直接手动填模型 ID 就行。`);
+}
+
 export function blobDataUrl(blob) {
     return new Promise((resolve,reject)=>{const f=new FileReader();f.onload=()=>resolve(f.result);f.onerror=()=>reject(new Error('读取图片失败'));f.readAsDataURL(blob);});
 }
@@ -80,7 +126,11 @@ export async function requestImage(prompt,{negative='',portrait=false,signal}={}
     let response;
     try { response=await fetch(imageEndpoint(s.imageBaseUrl),{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json',Authorization:`Bearer ${s.imageKey.trim()}`},body:JSON.stringify(body),signal}); }
     catch(e){if(signal?.aborted) throw e; throw new Error('生图服务无法连接。请核对地址、网络及服务的跨域支持。');}
-    if(!response.ok) throw new Error(response.status===429?'生图服务限流，请稍后手动重试':response.status===401||response.status===403?'生图鉴权失败，请检查密钥和权限':`生图请求失败（HTTP ${response.status}），请核对模型和参数`);
+    if(!response.ok) {
+        const reason=await errorReason(response);
+        const head=response.status===429?'生图服务限流，请稍后手动重试':response.status===401||response.status===403?'生图鉴权失败，请检查密钥和权限':response.status===400?'生图请求被拒绝（HTTP 400），请核对模型 ID 和描述格式':response.status>=500?`生图服务出错（HTTP ${response.status}），请核对描述格式后重试`:`生图请求失败（HTTP ${response.status}），请核对模型和参数`;
+        throw new Error(reason?`${head}。服务说：${reason}`:head);
+    }
     const blob=await decodeImage(response);
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     const dataUrl=await blobDataUrl(blob);

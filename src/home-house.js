@@ -1,13 +1,13 @@
 // 梦想家 · 盖房子和他的样子
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.6.1';
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.1';
-import { generate } from './api.js?mxj=0.6.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.1';
-import { getHome, setHome } from './settings.js?mxj=0.6.1';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.6.1';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.6.1';
-import { HOUSE_SYSTEM, LOOK_SYSTEM } from './home-prompts.js?mxj=0.6.1';
-import { HOUSE_SIZES, ROOM_MODULES, STRUCTURES, roomTypeOf, houseCapacity, defaultFurnitureFor } from './home-rooms.js?mxj=0.6.1';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.6.2';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.2';
+import { generate } from './api.js?mxj=0.6.2';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.2';
+import { getHome, setHome } from './settings.js?mxj=0.6.2';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.6.2';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.6.2';
+import { HOUSE_SYSTEM, LOOK_SYSTEM } from './home-prompts.js?mxj=0.6.2';
+import { HOUSE_SIZES, ROOM_MODULES, STRUCTURES, roomTypeOf, houseCapacity, defaultFurnitureFor } from './home-rooms.js?mxj=0.6.2';
 
 // ---------------- 盖房子 ----------------
 
@@ -26,7 +26,7 @@ ${extra ? `- 用户补充：${extra}\n` : ''}${emptyWall ? '- 每个房间少放
 
 # 输出格式
 {
-  "appearance": "从角色设定提取的外貌摘要：发型、发色、瞳色、肤色、服装、配饰；未提及的特征标注未设定",
+  "appearance": "从角色卡和世界书提取人物外貌：性别、年龄、发型、发色、瞳色、肤色、服装、配饰、独特特征。优先引用原文事实，未知标注未设定，不得臆造",
   ${LOOK_PROMPT},
   "name": "这个家的名字（短）",
   "story": "两三句话，用第二人称讲这个家给你的感觉和来历",
@@ -106,10 +106,16 @@ export function normalizeHouse(parsed, raw, size) {
 
 export async function designHouse(char, { size, extra, emptyWall, theme = 'pixel', signal }) {
     theme = getHome(char)?.house ? homeTheme(getHome(char)) : themeId(theme);
-    const info = await gatherContext(char);
+    const info = await gatherContext(char, { worldBookBudget: 18000 });
     const raw = await generate({ system: HOUSE_SYSTEM, user: houseUserPrompt(info, size, extra, emptyWall, theme), signal });
     const parsed = parseJsonLoose(raw);
-    return { ...normalizeHouse(parsed, raw, size), theme };
+    const house = normalizeHouse(parsed, raw, size);
+    // 模型漏写外貌时，拿角色描述和世界书里讲外貌的几行当草稿，入住前给用户确认；不凭空编
+    if (!house.appearance || /^(未设定|未知|无)$/.test(house.appearance.trim())) {
+        const lines = String(info.worldBook || '').split('\n').filter(line => /外貌|容貌|发色|发型|瞳色|眼睛|肤色|衣着|服装|外观|appearance|hair|eyes|outfit/i.test(line));
+        house.appearance = clip([info.char.description, ...lines].filter(Boolean).join('\n'), 1200);
+    }
+    return { ...house, theme };
 }
 
 export function createHome(char, house) {
@@ -149,17 +155,19 @@ export function setLook(char, patch) {
 }
 
 export async function generateLook(char, { signal } = {}) {
-    const info = await gatherContext(char);
+    const info = await gatherContext(char, { worldBookBudget: 18000 });
     const user = `${contextBlock(info, { withRecent: false })}
 
 # 要求
 固定画风：${themeName(homeTheme(getHome(char)))}。用户确认的外貌：${getHome(char)?.appearance || "以角色卡为准"}。
-按「${info.char.name}」的外貌定下小人的样子；描写里没提到的部分，按他的气质挑合适的颜色。颜色用 #RRGGBB。
+按「${info.char.name}」的外貌定下小人的样子；描写里没提到的颜色按他的气质挑。没写到的特殊身体特征不要编，也不要按名字猜性别和年龄。颜色用 #RRGGBB。
 
 # 输出格式
 { ${LOOK_PROMPT} }`;
     const raw = await generate({ system: LOOK_SYSTEM, user, signal, maxTokens: 800 });
     const parsed = parseJsonLoose(raw);
+    // 没拿到形象数据就不动原来的样子（以前会被重置成默认小人）
+    if (!parsed || typeof parsed !== 'object') throw new Error('这次没拿到他的样子，原来的形象没有改，可以再试一次。');
     const look = parsed?.look && typeof parsed.look === 'object' ? parsed.look : parsed;
     const home = getHome(char);
     if (!home) throw new Error('这个家已经不在了，这次生成的内容没有保存。');

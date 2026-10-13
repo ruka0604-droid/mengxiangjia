@@ -1,8 +1,8 @@
 // 梦想家 · 生成通道
 // 跟随当前 API：用酒馆的 generateRaw。
 // 副 API：和兔子镜一样全部经过酒馆后端转发，不从浏览器直连接口，也不会悄悄退回主 API。
-import { ctx, stripThinking } from './util.js?mxj=0.6.1';
-import { getSettings } from './settings.js?mxj=0.6.1';
+import { ctx, stripThinking } from './util.js?mxj=0.6.2';
+import { getSettings } from './settings.js?mxj=0.6.2';
 
 const ST_STATUS = '/api/backends/chat-completions/status';
 const ST_GENERATE = '/api/backends/chat-completions/generate';
@@ -60,6 +60,7 @@ function redact(text) {
 
 function compactError(status, text) {
     const body = String(text || '');
+    if (status === 503) return '接口返回 503（服务暂时不可用）。酒馆聊天能用的话，可能是这次请求和当前连接不兼容；可以稍后再试，梦想家不会自动换 API。';
     if (status === 429) return '接口说请求太频繁（429），稍等一会儿再试。';
     if (status === 524 || status === 504) return '接口等太久没有回应（超时），可以再试一次。';
     if (/<html|<!doctype/i.test(body)) return `接口返回了一个网页而不是结果（HTTP ${status}），请检查地址。`;
@@ -165,10 +166,14 @@ export async function generate(req) {
     // 取消时立刻结束；主 API 没法中途停下，它的结果到了也不再使用、不会写进存档。
     let text = await raceAbort(task, req.signal);
     if (req.signal?.aborted) throw abortError();
+    // 接口把「内容审核拒绝」或报错当成正文返回时，不能当成他说的话写进回家记录、纸条和日记
+    if (REFUSAL_RE.test(String(text || '').trim())) throw new GenerationError('文字 API 返回的是内容审核拒绝或报错，不是正文，这次没有保存。可以换个说法或检查接口后再试。');
     text = stripThinking(text);
     if (!text.trim()) throw new GenerationError('接口有回应，但没有拿到正文，可以再试一次。');
     return text;
 }
+
+const REFUSAL_RE = /the prompt could not be submitted|generative ai prohibited use policy|sensitive words that violate|ai\.google\.dev\/gemini-api\/docs\/troubleshooting|^(?:error|exception|api error|request failed|http [45]\d\d)\s*[:：]/i;
 
 function abortError() {
     return new DOMException('已取消', 'AbortError');
@@ -209,10 +214,11 @@ async function viaMainApi(messages, req) {
         const raw = isChat
             ? await fn({ prompt: messages, api: c.mainApi, quietToLoud: false, trimNames: false, ...extra })
             : await fn({ prompt: messages[1].content, systemPrompt: messages[0].content, api: c.mainApi, quietToLoud: false, trimNames: false, ...extra });
-        return String(raw ?? '');
+        return typeof raw === 'string' ? raw : String(extractResponseText(raw) ?? '');
     } catch (error) {
         if (req.signal?.aborted) throw error;
-        throw new GenerationError(`主 API 生成失败：${redact(error?.message || error)}`);
+        const message = redact(error?.message || error);
+        throw new GenerationError(`主 API 生成失败（跟随酒馆当前的 ${c.mainApi || '未知'} 连接）：${message}${/Service Unavailable|\b503\b/i.test(message) ? '。这是生成请求出的错，可以在酒馆主聊天里试一下同一时刻是否正常。' : ''}`);
     } finally {
         mainApiRunning--;
     }
@@ -277,7 +283,7 @@ async function viaProfile(s, messages, req) {
             overrides,
         );
         const text = typeof result === 'string' ? result : (result?.content ?? extractResponseText(result));
-        return String(text ?? '');
+        return typeof text === 'string' ? text : String(extractResponseText(text) ?? '');
     } catch (error) {
         if (req.signal?.aborted) throw error;
         throw new GenerationError(`连接配置生成失败：${redact(error?.message || error)}`);
@@ -320,7 +326,10 @@ async function postStatus(body) {
             body: JSON.stringify(body),
         });
         if (!response.ok) throw new GenerationError(compactError(response.status, await response.text().catch(() => '')));
-        const data = await response.json();
+        const raw = await response.text();
+        if (/^\s*<(?:!doctype|html)/i.test(raw)) throw new GenerationError('拉取模型时接口返回了网页而不是模型列表，请检查 API 地址，或直接手动填写模型 ID。');
+        let data;
+        try { data = JSON.parse(raw); } catch { throw new GenerationError('拉取模型时接口返回的不是模型列表，可以直接手动填写模型 ID。'); }
         if (data?.error) {
             const msg = typeof data.error === 'string' ? data.error : (data.error?.message || data.message || '');
             throw new GenerationError(`拉取模型失败${msg ? `：${redact(msg).slice(0, 200)}` : '，请检查地址和 Key。'}`);

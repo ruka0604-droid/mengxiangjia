@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.6.1';
-import { getSettings } from './settings.js?mxj=0.6.1';
+import { ctx, clip } from './util.js?mxj=0.6.2';
+import { getSettings } from './settings.js?mxj=0.6.2';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -10,8 +10,9 @@ export function characterView(char) {
     const data = char?.data && typeof char.data === 'object' ? char.data : {};
     return {
         name: first(char?.name, data.name) || '他',
-        description: clip(first(char?.description, data.description), 2400),
-        personality: clip(first(char?.personality, data.personality), 1200),
+        // 角色描述放宽到 6000 字，外貌常写在后半段，截短了会丢
+        description: clip(first(data.description, char?.description), 6000),
+        personality: clip(first(data.personality, char?.personality), 1600),
         scenario: clip(first(char?.scenario, data.scenario), 900),
         firstMes: clip(first(char?.first_mes, data.first_mes), 600),
     };
@@ -58,7 +59,7 @@ export async function characterWorldBookText(char, budget = 5000) {
         const list = Array.isArray(entries) ? entries : Object.values(entries);
         for (const entry of list) {
             if (!entry || entry.enabled === false || entry.disable === true) continue;
-            const content = String(entry.content || '').trim();
+            const content = String(entry.content || entry.text || '').trim();
             if (!content) continue;
             const title = String(entry.comment || entry.name || entry.title || '').trim();
             rows.push(title ? `【${title}】${content}` : content);
@@ -66,8 +67,8 @@ export async function characterWorldBookText(char, budget = 5000) {
     };
     // 绑定了世界书就读绑定的那本（最新、开关状态也准）；读不到才用卡里内嵌的。
     // 酒馆保存角色时会把绑定的世界书复制一份进卡里，两份都读会重复，还会把已关掉的条目读进来。
-    const embedded = char?.data?.character_book ?? char?.character_book;
-    const linkedName = String(char?.data?.extensions?.world || '').trim();
+    const embedded = char?.data?.character_book ?? char?.character_book ?? char?.data?.extensions?.character_book;
+    const linkedName = String(char?.data?.extensions?.world || char?.extensions?.world || '').trim();
     let linkedOk = false;
     if (linkedName) {
         const controller = new AbortController();
@@ -106,6 +107,9 @@ export async function characterWorldBookText(char, budget = 5000) {
         if (seen.has(rows[i])) rows.splice(i, 1);
         else seen.add(rows[i]);
     }
+    // 外貌相关的条目排前面，世界书很长时不会被前面的长篇背景挤掉
+    const appearanceRe = /外貌|外观|容貌|长相|形象|发型|发色|瞳色|眼睛|眼眸|肤色|身高|体型|服装|衣着|穿着|特征|appearance|physical|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
+    rows.sort((a, b) => Number(appearanceRe.test(b)) - Number(appearanceRe.test(a)));
     let out = '';
     for (const row of rows) {
         if (out.length + row.length > budget) {
@@ -133,10 +137,11 @@ export function recentChatText() {
     return picked.join('\n');
 }
 
-export async function gatherContext(char) {
+// worldBookBudget：盖房子、定小人外形这类要看外貌的，多读一些世界书
+export async function gatherContext(char, { worldBookBudget = 5000 } = {}) {
     const view = characterView(char);
     const persona = personaView();
-    const worldBook = await characterWorldBookText(char);
+    const worldBook = await characterWorldBookText(char, worldBookBudget);
     const recent = recentChatText();
     return { char: view, persona, worldBook, recent };
 }

@@ -1,10 +1,10 @@
 // 梦想家 · 小纸条
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.6.1';
-import { generate } from './api.js?mxj=0.6.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.1';
-import { getHome, setHome } from './settings.js?mxj=0.6.1';
-import { NOTE_SYSTEM, VISIT_SYSTEM } from './home-prompts.js?mxj=0.6.1';
-import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.6.1';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.6.2';
+import { generate } from './api.js?mxj=0.6.2';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.2';
+import { getHome, setHome } from './settings.js?mxj=0.6.2';
+import { NOTE_SYSTEM, VISIT_SYSTEM } from './home-prompts.js?mxj=0.6.2';
+import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.6.2';
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];
@@ -33,6 +33,9 @@ export async function replyToNote(char, noteId, { signal } = {}) {
     const home = getHome(char);
     const note = home?.notes?.find(n => n.id === noteId);
     if (!note) throw new Error('找不到这张纸条');
+    // 先确认这张能回，免得白花一次生成
+    if (note.from !== 'user') throw new Error('只能请他回你写的纸条');
+    if (note.replyId) throw new Error('这张纸条已经回复过了');
     const info = await gatherContext(char);
     const user = `${contextBlock(info)}
 
@@ -50,8 +53,11 @@ ${notesHistory(home)}
 请写你的回信。`;
     const raw = await generate({ system: NOTE_SYSTEM, user, signal, maxTokens: 1024 });
     const parsed = parseJsonLoose(raw);
+    // 接口回的是报错对象、或者一段没有正文的 JSON，就不当成他的回信
+    const isObj = parsed && typeof parsed === 'object' && !Array.isArray(parsed);
+    if (isObj && (parsed.error || parsed.message) && !parsed.text && !parsed.reply) throw new Error('纸条接口返回了报错，回信没有保存，纸条还在等他回。');
     const text = asText(parsed?.text || parsed?.reply, 400) || clip(String(raw || '').replace(/^["“]|["”]$/g, ''), 400);
-    if(!text)throw new Error('模型没有返回纸条内容，请手动重试');
+    if (!text || (/^\s*[\[{]/.test(text) && !parsed?.text && !parsed?.reply)) throw new Error('模型没有返回纸条内容，纸条还在等他回，可以再请一次。');
     const fresh = liveHome(char);
     const target = (fresh.notes || []).find(n => n.id === noteId);
     if(!target)throw new Error('这张纸条已经不在了');
