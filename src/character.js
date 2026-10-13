@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.5.12';
-import { getSettings } from './settings.js?mxj=0.5.12';
+import { ctx, clip } from './util.js?mxj=0.5.13';
+import { getSettings } from './settings.js?mxj=0.5.13';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -106,6 +106,66 @@ export async function characterWorldBookText(char, budget = 5000, { strict = fal
         out += `${row}\n`;
     }
     return out.trim();
+}
+
+// 人物外貌专用：世界书是唯一的基础来源；正文只补齐缺失的字段。
+// 不调用文字模型，避免模型拒绝、幻觉及将 API 错误混入生图提示词。
+const LOOK_FIELDS = [
+    ['age', /年龄|岁|年纪|age|years? old/i],
+    ['gender', /性别|男性|女性|男人|女人|男生|女生|gender|\bmale\b|\bfemale\b/i],
+    ['hair', /发型|发色|头发|短发|长发|寸头|刘海|卷发|直发|马尾|辫子|秃头|黑发|金发|银发|白发|棕发|红发|hair|buzz cut|crew cut|undercut/i],
+    ['eyes', /眼睛|眼眸|瞳色|瞳孔|眸色|眼型|eyes?|iris|pupil/i],
+    ['skin', /肤色|皮肤|肤质|skin|complexion/i],
+    ['build', /身高|体型|身材|肩宽|肌肉|体重|高挑|修长|健壮|纤细|height|build|physique|tall|slim|muscular/i],
+    ['clothes', /服装|服饰|穿着|衣着|衣服|外套|衬衫|西装|制服|校服|裙子|长裤|短裤|领带|领结|鞋子|披风|outfit|clothing|wears?|dress|shirt|suit|uniform|coat|jacket/i],
+    ['features', /外貌|容貌|五官|长相|面容|面部|眉毛|鼻梁|嘴唇|伤疤|疤痕|纹身|胎记|耳朵|尾巴|眼镜|配饰|饰品|appearance|facial|scar|tattoo|glasses|accessor/i],
+];
+const LOOK_LABELS = {age:'年龄',gender:'性别',hair:'发型与发色',eyes:'眼睛',skin:'肤色',build:'身材',clothes:'服装',features:'其他外貌特征'};
+function relevantLines(text, {chat=false, charName=''}={}) {
+    const rows=String(text||'').split(/\n|[。！？!?；;]/).map(x=>x.trim()).filter(Boolean);
+    const selected=[];
+    for (const row of rows) {
+        if (isGenerationFailure(row)) continue;
+        if (!LOOK_FIELDS.some(([,pattern])=>pattern.test(row))) continue;
+        if (chat) {
+            // 只接受角色本人发言或明确提到该角色的叙述，不借用其他 NPC/用户外貌。
+            const colon=row.indexOf('：');
+            if (colon<0) continue;
+            const speaker=row.slice(0,colon).trim();
+            const body=row.slice(colon+1).trim();
+            if (speaker!==charName && !body.includes(charName)) continue;
+            if (/^(?:你|我|用户|user)的?(?:头发|眼睛|衣服|发型|肤色)/i.test(body)) continue;
+        }
+        selected.push(row.slice(0,450));
+    }
+    return selected;
+}
+export function extractPortraitAppearance(worldBook, chatText='', charName='') {
+    const bookLines=relevantLines(worldBook);
+    const chatLines=relevantLines(chatText,{chat:true,charName});
+    const details={}; const origins={};
+    for (const [field,pattern] of LOOK_FIELDS) {
+        const book=bookLines.filter(line=>pattern.test(line));
+        if (book.length) { details[field]=book.slice(0,3).join('；'); origins[field]='世界书'; continue; }
+        const chat=chatLines.filter(line=>pattern.test(line));
+        if (chat.length) { details[field]=chat.slice(-2).join('；'); origins[field]='正文补缺'; }
+    }
+    const missing=LOOK_FIELDS.filter(([field])=>!details[field]).map(([field])=>LOOK_LABELS[field]);
+    const lines=LOOK_FIELDS.filter(([field])=>details[field]).map(([field])=>`${LOOK_LABELS[field]}（${origins[field]}）：${details[field]}`);
+    return {text:lines.join('\n'),details,origins,missing,worldBookMatched:bookLines.length,chatMatched:chatLines.length};
+}
+export async function gatherPortraitAppearance(char) {
+    if (!getSettings().readCharacterWorldBook) throw new Error('人物生图必须读取世界书，请先在设置中启用角色世界书。');
+    const worldBook=await characterWorldBookText(char, 60000, {strict:true});
+    if (!worldBook.trim()) throw new Error('角色内嵌世界书和绑定世界书没有可读取的内容。请检查世界书绑定及条目是否启用。');
+    const c=ctx();
+    const name=characterView(char).name;
+    const chat=Array.isArray(c.chat)?c.chat:[];
+    const recent=chat.slice(-80).filter(m=>m && !m.is_system).map(m=>`${m.name || (m.is_user?'用户':name)}：${String(m.mes||'').replace(/<[^>]*>/g,' ').slice(0,1200)}`).join('\n');
+    const extracted=extractPortraitAppearance(worldBook,recent,name);
+    if (!extracted.worldBookMatched) throw new Error('世界书已读取，但未找到明确的外貌条目。请在世界书中补充外貌设定后重试。');
+    if (!extracted.text) throw new Error('世界书和正文中没有可用的人物外貌描述。');
+    return extracted;
 }
 
 export function recentChatText() {

@@ -1,7 +1,7 @@
 // 梦想家独立生图连接。图片直接请求使用者配置的服务，不读取其他扩展。
-import { getSettings } from './settings.js?mxj=0.5.12';
-import { ctx, uid } from './util.js?mxj=0.5.12';
-import { inflateRaw } from './inflate.js?mxj=0.5.12';
+import { getSettings } from './settings.js?mxj=0.5.13';
+import { ctx, uid } from './util.js?mxj=0.5.13';
+import { inflateRaw } from './inflate.js?mxj=0.5.13';
 
 export function imageEndpoint(value) {
     const u = new URL(String(value || '').trim());

@@ -1,22 +1,22 @@
-import { refreshFloating } from './floating.js?mxj=0.5.12';
-import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.12';
-import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.12';
-import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.12';
+import { refreshFloating } from './floating.js?mxj=0.5.13';
+import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.13';
+import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.13';
+import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.13';
 // 梦想家 · 界面
-import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.12';
-import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.12';
-import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.12';
-import { characterView, avatarUrl } from './character.js?mxj=0.5.12';
-import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.12';
+import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.13';
+import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.13';
+import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.13';
+import { characterView, avatarUrl } from './character.js?mxj=0.5.13';
+import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.13';
 import {
     HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse, NOTE_KINDS, NOTE_PLACES,
     designHouse, createHome, comeHome, respond, postNote, replyToNote, writeCharNote,
     markCharNotesRead, unreadFromChar, shouldAutoVisit, isAway,
     getLook, setLook, generateLook,
     WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary, shouldAutoDiary,
-} from './home.js?mxj=0.5.12';
-import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.12';
-import { createDecorator } from './decorate.js?mxj=0.5.12';
+} from './home.js?mxj=0.5.13';
+import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.13';
+import { createDecorator } from './decorate.js?mxj=0.5.13';
 
 const ROOT_ID = 'mxj-root';
 
