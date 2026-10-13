@@ -1,20 +1,20 @@
 // 梦想家 · 界面核心：面板的打开关闭、确认框、渲染、忙碌条、事件分发
 // 每一页的内容和按钮在 view-*.js 里；这里只负责把它们接起来。
-import { refreshFloating } from './floating.js?mxj=0.6.2';
-import { homeTheme } from './theme.js?mxj=0.6.2';
-import { esc, LOG_PREFIX } from './util.js?mxj=0.6.2';
-import { currentCharacter, getHome } from './settings.js?mxj=0.6.2';
-import { characterView } from './character.js?mxj=0.6.2';
-import { shouldAutoVisit } from './home-visit.js?mxj=0.6.2';
-import { createDecorator } from './decorate.js?mxj=0.6.2';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.2';
-import { setup as setupHome } from './view-home.js?mxj=0.6.2';
-import { setup as setupBuild } from './view-build.js?mxj=0.6.2';
-import { setup as setupNotes } from './view-notes.js?mxj=0.6.2';
-import { setup as setupDiary } from './view-diary.js?mxj=0.6.2';
-import { setup as setupLook } from './view-look.js?mxj=0.6.2';
-import { setup as setupArt } from './view-art.js?mxj=0.6.2';
-import { setup as setupSettings } from './view-settings.js?mxj=0.6.2';
+import { refreshFloating } from './floating.js?mxj=0.6.6';
+import { homeTheme } from './theme.js?mxj=0.6.6';
+import { esc, LOG_PREFIX } from './util.js?mxj=0.6.6';
+import { currentCharacter, getHome } from './settings.js?mxj=0.6.6';
+import { characterView } from './character.js?mxj=0.6.6';
+import { shouldAutoVisit } from './home-visit.js?mxj=0.6.6';
+import { createDecorator } from './decorate.js?mxj=0.6.6';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.6';
+import { setup as setupHome } from './view-home.js?mxj=0.6.6';
+import { setup as setupBuild } from './view-build.js?mxj=0.6.6';
+import { setup as setupNotes } from './view-notes.js?mxj=0.6.6';
+import { setup as setupDiary } from './view-diary.js?mxj=0.6.6';
+import { setup as setupLook } from './view-look.js?mxj=0.6.6';
+import { setup as setupArt } from './view-art.js?mxj=0.6.6';
+import { setup as setupSettings } from './view-settings.js?mxj=0.6.6';
 
 const ROOT_ID = 'mxj-root';
 

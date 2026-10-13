@@ -1,13 +1,13 @@
 // 梦想家 · 界面 · 盖房子（选风格、大小、看设计提案、确认外貌入住）和房子档案
-import { THEMES, homeTheme, themeName } from './theme.js?mxj=0.6.2';
-import { esc } from './util.js?mxj=0.6.2';
-import { getSettings, currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.2';
-import { renderFloorPlan } from './furniture.js?mxj=0.6.2';
-import { characterView } from './character.js?mxj=0.6.2';
-import { HAIR_STYLES, ACCESSORIES } from './sprite.js?mxj=0.6.2';
-import { HOUSE_SIZES } from './home-rooms.js?mxj=0.6.2';
-import { designHouse, createHome, getLook } from './home-house.js?mxj=0.6.2';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.2';
+import { THEMES, homeTheme, themeName } from './theme.js?mxj=0.6.6';
+import { esc } from './util.js?mxj=0.6.6';
+import { getSettings, currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.6';
+import { renderFloorPlan } from './furniture.js?mxj=0.6.6';
+import { characterView } from './character.js?mxj=0.6.6';
+import { HAIR_STYLES, ACCESSORIES } from './sprite.js?mxj=0.6.6';
+import { HOUSE_SIZES } from './home-rooms.js?mxj=0.6.6';
+import { designHouse, createHome, getLook } from './home-house.js?mxj=0.6.6';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.6';
 
 let app = null;
 let state = null;

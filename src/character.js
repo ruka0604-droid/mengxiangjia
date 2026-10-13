@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.6.2';
-import { getSettings } from './settings.js?mxj=0.6.2';
+import { ctx, clip } from './util.js?mxj=0.6.6';
+import { getSettings } from './settings.js?mxj=0.6.6';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -50,7 +50,7 @@ async function requestHeaders() {
  * 角色世界书（卡内嵌的 + 绑定的那本），只取启用且有内容的条目，按字数截断。
  * 读不到时返回空字符串，不阻止生成。
  */
-export async function characterWorldBookText(char, budget = 5000) {
+export async function characterWorldBookText(char, budget = 5000, { task = 'general' } = {}) {
     if (!getSettings().readCharacterWorldBook) return '';
     const rows = [];
     const pushEntries = (book) => {
@@ -62,7 +62,11 @@ export async function characterWorldBookText(char, budget = 5000) {
             const content = String(entry.content || entry.text || '').trim();
             if (!content) continue;
             const title = String(entry.comment || entry.name || entry.title || '').trim();
-            rows.push(title ? `【${title}】${content}` : content);
+            rows.push({
+                title,
+                text: title ? `【${title}】${content}` : content,
+                order: rows.length,
+            });
         }
     };
     // 绑定了世界书就读绑定的那本（最新、开关状态也准）；读不到才用卡里内嵌的。
@@ -108,7 +112,7 @@ export async function characterWorldBookText(char, budget = 5000) {
         else seen.add(rows[i]);
     }
     // 外貌相关的条目排前面，世界书很长时不会被前面的长篇背景挤掉
-    const appearanceRe = /外貌|外观|容貌|长相|形象|发型|发色|瞳色|眼睛|眼眸|肤色|身高|体型|服装|衣着|穿着|特征|appearance|physical|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
+    const appearanceRe = /外貌|外观|容貌|长相|形象|五官|脸型|眉毛|发型|发色|瞳色|眼睛|眼眸|肤色|服装|衣着|穿着|配饰|appearance|face|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
     rows.sort((a, b) => Number(appearanceRe.test(b)) - Number(appearanceRe.test(a)));
     let out = '';
     for (const row of rows) {
@@ -137,13 +141,13 @@ export function recentChatText() {
     return picked.join('\n');
 }
 
-// worldBookBudget：盖房子、定小人外形这类要看外貌的，多读一些世界书
-export async function gatherContext(char, { worldBookBudget = 5000 } = {}) {
+// worldBookBudget：长世界书时的截取上限。task='appearance' 时外貌相关条目优先；其他任务保持原有顺序。
+export async function gatherContext(char, { worldBookBudget = 5000, task = 'general' } = {}) {
     const view = characterView(char);
     const persona = personaView();
-    const worldBook = await characterWorldBookText(char, worldBookBudget);
+    const worldBook = await characterWorldBookText(char, worldBookBudget, { task });
     const recent = recentChatText();
-    return { char: view, persona, worldBook, recent };
+    return { char: view, persona, worldBook, recent, task };
 }
 
 export function contextBlock(info, { withRecent = true } = {}) {
