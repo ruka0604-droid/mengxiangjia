@@ -1,11 +1,11 @@
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.10';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.11';
 // 梦想家 · 家的数据与生成
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.10';
-import { generate } from './api.js?mxj=0.5.10';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.10';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.10';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.10';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.10';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.11';
+import { generate } from './api.js?mxj=0.5.11';
+import { gatherContext, contextBlock, validatedAppearance } from './character.js?mxj=0.5.11';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.11';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.11';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.11';
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];
@@ -194,14 +194,18 @@ export function normalizeHouse(parsed, raw, size) {
 
 export async function designHouse(char, { size, extra, emptyWall, theme = 'pixel', signal }) {
     theme = getHome(char)?.house ? homeTheme(getHome(char)) : themeId(theme);
-    const info = await gatherContext(char);
+    const info = await gatherContext(char, { portrait: true });
     const raw = await generate({ system: HOUSE_SYSTEM, user: houseUserPrompt(info, size, extra, emptyWall, theme), signal });
+    validatedAppearance(raw);
     const parsed = parseJsonLoose(raw);
+    if (!parsed || typeof parsed !== 'object') throw new Error('建房接口未返回有效 JSON，已停止操作，避免把错误信息当成外貌。');
     const result = normalizeHouse(parsed, raw, size);
     // 生成住宅时模型有时忽略外貌字段：保留世界书中的外貌原文供入住前确认，绝不凭空填充特征。
+    if (result.appearance) validatedAppearance(result.appearance);
     if (!result.appearance || /^(未设定|未知|无)$/i.test(result.appearance.trim())) {
         const relevant = (info.worldBook || '').split('\n').filter(line => /外貌|容貌|发色|发型|瞳色|眼睛|肤色|衣着|服装|外观|appearance|hair|eyes|outfit/i.test(line));
         result.appearance = clip([info.char.description, ...relevant].filter(Boolean).join('\n'), 1200);
+        if (result.appearance) validatedAppearance(result.appearance);
     }
     return { ...result, theme };
 }
@@ -605,7 +609,7 @@ export async function suggestFurniture(char, roomId, { signal } = {}) {
     const home = getHome(char);
     const room = home?.house?.rooms.find(r => r.id === roomId);
     if (!room) throw new Error('找不到这个房间');
-    const info = await gatherContext(char);
+    const info = await gatherContext(char, { portrait: true });
     const user = `${contextBlock(info, { withRecent: false })}
 
 # 你们的家
@@ -668,7 +672,7 @@ export function setLook(char, patch) {
 const LOOK_SYSTEM = `你是角色设计师。根据角色设定里的外貌描写与用户确认的外貌，定下这个角色的 Q 版小人外形。只输出一个 JSON 对象。`;
 
 export async function generateLook(char, { signal } = {}) {
-    const info = await gatherContext(char);
+    const info = await gatherContext(char, { portrait: true });
     const user = `${contextBlock(info, { withRecent: false })}
 
 # 要求
@@ -678,7 +682,9 @@ export async function generateLook(char, { signal } = {}) {
 # 输出格式
 { ${LOOK_PROMPT} }`;
     const raw = await generate({ system: LOOK_SYSTEM, user, signal, maxTokens: 800 });
+    validatedAppearance(raw);
     const parsed = parseJsonLoose(raw);
+    if (!parsed || typeof parsed !== 'object') throw new Error('外貌接口未返回有效 JSON，原人物形象已保留。');
     const look = parsed?.look && typeof parsed.look === 'object' ? parsed.look : parsed;
     const home = getHome(char);
     home.look = normalizeLook(look, char?.name);

@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.5.10';
-import { getSettings } from './settings.js?mxj=0.5.10';
+import { ctx, clip } from './util.js?mxj=0.5.11';
+import { getSettings } from './settings.js?mxj=0.5.11';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -49,10 +49,12 @@ async function requestHeaders() {
  * 角色世界书（卡内嵌的 + 绑定的那本），只取启用且有内容的条目，按字数截断。
  * 读不到时返回空字符串，不阻止生成。
  */
-export async function characterWorldBookText(char, budget = 5000) {
+export async function characterWorldBookText(char, budget = 5000, { strict = false } = {}) {
+    if (!getSettings().readCharacterWorldBook && strict) throw new Error('人物生图必须读取世界书，请先在设置中启用角色世界书。');
     if (!getSettings().readCharacterWorldBook) return '';
     const rows = [];
     const seen = new Set();
+    const errors = [];
     const pushEntries = (book) => {
         const entries = book?.entries;
         if (!entries) return;
@@ -81,17 +83,20 @@ export async function characterWorldBookText(char, budget = 5000) {
                     body: JSON.stringify({ name: linkedName }),
                     signal: controller.signal,
                 });
-                if (response.ok) pushEntries(await response.json());
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                pushEntries(await response.json());
             } finally {
                 clearTimeout(timer);
             }
         }
     } catch (error) {
-        console.debug('[梦想家] 读取绑定世界书失败，仍使用已读取的内嵌内容', error);
+        errors.push(error?.message || String(error));
+        console.debug('[梦想家] 读取绑定世界书失败', error);
     }
+    if (strict && errors.length) throw new Error(`绑定世界书读取失败：${errors.join('；')}。请重试，不能忽略世界书继续生图。`);
     // 优先提供外貌相关条目，避免重要特征被世界书前面的长篇背景挤出预算。
     const appearanceRe = /外貌|外观|容貌|长相|形象|发型|发色|瞳色|眼睛|眼眸|肤色|身高|体型|服装|衣着|穿着|特征|appearance|physical|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
-    rows.sort((a,b) => Number(appearanceRe.test(b.slice(0,240))) - Number(appearanceRe.test(a.slice(0,240))));
+    rows.sort((a,b) => Number(appearanceRe.test(b)) - Number(appearanceRe.test(a)));
     let out = '';
     for (const row of rows) {
         if (out.length + row.length > budget) {
@@ -119,10 +124,10 @@ export function recentChatText() {
     return picked.join('\n');
 }
 
-export async function gatherContext(char) {
+export async function gatherContext(char, { portrait = false } = {}) {
     const view = characterView(char);
     const persona = personaView();
-    const worldBook = await characterWorldBookText(char);
+    const worldBook = await characterWorldBookText(char, portrait ? 18000 : 5000, { strict: portrait });
     const recent = recentChatText();
     return { char: view, persona, worldBook, recent };
 }
@@ -138,4 +143,17 @@ export function contextBlock(info, { withRecent = true } = {}) {
     if (info.persona.description) parts.push(`## 用户人设\n${info.persona.description}`);
     if (withRecent && info.recent) parts.push(`# 最近的聊天（只作为两人近况参考）\n${info.recent}`);
     return parts.join('\n\n');
+}
+
+// 模型返回的拒绝/故障文本不得写入外貌或生图提示词。
+export function isGenerationFailure(value) {
+    const t = String(value || '').trim();
+    return !t || /the prompt could not be submitted|generative ai prohibited use policy|sensitive words that violate|send feedback|ai\.google\.dev\/gemini-api\/docs\/troubleshooting|^(?:error|exception|request failed|api error|http [45]\d\d)\s*[:：]/i.test(t)
+        || /(?:内容审核|违反.*政策|敏感词.*(?:拒绝|禁止)|请求被拒绝)/i.test(t);
+}
+
+export function validatedAppearance(value) {
+    const t = String(value || '').replace(/```/g, '').trim();
+    if (isGenerationFailure(t)) throw new Error('外貌整理接口返回了拒绝或错误信息，已停止生图；请核对角色资料后重试。');
+    return t;
 }

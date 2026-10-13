@@ -1,9 +1,9 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.5.10';
-import { gatherContext, contextBlock } from './character.js?mxj=0.5.10';
-import { homeTheme } from './theme.js?mxj=0.5.10';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.5.10';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.5.10';
+import { generate } from './api.js?mxj=0.5.11';
+import { gatherContext, contextBlock, validatedAppearance } from './character.js?mxj=0.5.11';
+import { homeTheme } from './theme.js?mxj=0.5.11';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.5.11';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.5.11';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -36,13 +36,19 @@ export function artPrompt(theme,kind,description,cutout) {
 export async function prepareArt(char,kind,id,{signal}={}) {
     const home=getHome(char);const target=artTarget(home,kind,id);
     if(!home?.house || !target) throw new Error('找不到需要绘制的对象');
-    const theme=homeTheme(home), info=await gatherContext(char);
+    const theme=homeTheme(home), info=await gatherContext(char, { portrait: kind === 'portrait' });
+    if (kind === 'portrait' && !String(home.appearance || info.char.description || info.worldBook || '').trim()) throw new Error('角色卡及世界书中没有可用的外貌信息，请先补充并确认外貌。');
+    if (kind === 'portrait' && home.appearance) validatedAppearance(home.appearance);
     const subject=kind==='portrait'?`Character appearance confirmed by the user: ${home.appearance || info.char.description}`:kind==='room'?`Room: ${target.name}. ${target.note || ''}. House: ${home.house.story || ''}. Wall color: ${target.wall || home.house.palette.wall}. Floor color: ${target.floor || home.house.palette.floor}.`:`Furniture: ${target.name}; type: ${target.type}; color: ${target.color || home.house.palette.accent}.`;
     const text=await generate({system:kind==='portrait'
         ? 'Extract a concise English visual description of THIS character from the character card, linked worldbook and user-confirmed appearance. Use canonical gender and age only if stated; do not assume male or female. If gender or age is unspecified or contradictory, keep it unspecified rather than guessing. Preserve explicit facial features, hairstyle, colors, clothing and accessories. Include distinctive physical traits only when established by the character source. Do not infantilize an adult. Output plain English only, no markdown, no new invented features.'
         : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:`${contextBlock(info,{withRecent:false})}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650});
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
-    const prompt=artPrompt(theme,kind,text.replace(/```/g,'').trim(),getSettings().imageCutout && kind!=='room');
+    const description = kind === 'portrait' ? validatedAppearance(text) : text.replace(/```/g,'').trim();
+    // 角色确认的特征直接进入最终提示词，防止翻译/整理模型遗漏或改写。
+    const canonical = kind === 'portrait' ? validatedAppearance(String(home.appearance || '').trim() || String(info.char.description || info.worldBook || '').slice(0,1500)) : '';
+    const finalDescription = kind === 'portrait' ? `${description}. User-confirmed canonical appearance (must be preserved exactly): ${canonical}` : description;
+    const prompt=artPrompt(theme,kind,finalDescription,getSettings().imageCutout && kind!=='room');
     return {kind,id,theme,prompt,negative:kind==='portrait'?`${CHIBI_NEGATIVE}, ${ART_NEGATIVE}`:ART_NEGATIVE,owner:characterKey(char),house:home.house};
 }
 export async function generateArt(draft,{signal}={}) {
