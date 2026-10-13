@@ -1,14 +1,14 @@
 // 梦想家 · 盖房子和他的样子
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.6.8';
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.8';
-import { generate } from './api.js?mxj=0.6.8';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.8';
-import { getHome, setHome } from './settings.js?mxj=0.6.8';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.6.8';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.6.8';
-import { HOUSE_SYSTEM, LOOK_SYSTEM } from './home-prompts.js?mxj=0.6.8';
-import { HOUSE_SIZES, ROOM_MODULES, STRUCTURES, roomTypeOf, houseCapacity, defaultFurnitureFor } from './home-rooms.js?mxj=0.6.8';
-import { cleanAppearanceText } from './appearance-filter.js?mxj=0.6.8';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.6.9';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.9';
+import { generate } from './api.js?mxj=0.6.9';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.9';
+import { getHome, setHome } from './settings.js?mxj=0.6.9';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.6.9';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.6.9';
+import { HOUSE_SYSTEM, LOOK_SYSTEM } from './home-prompts.js?mxj=0.6.9';
+import { HOUSE_SIZES, ROOM_MODULES, STRUCTURES, roomTypeOf, houseCapacity, defaultFurnitureFor } from './home-rooms.js?mxj=0.6.9';
+import { cleanAppearanceText } from './appearance-filter.js?mxj=0.6.9';
 
 // ---------------- 盖房子 ----------------
 
@@ -176,4 +176,69 @@ export async function generateLook(char, { signal } = {}) {
     home.look = normalizeLook(look, char?.name);
     setHome(char, home);
     return home.look;
+}
+
+// ---------------- 中途换风格 ----------------
+// 画好的图（人物、房间背景、家具）按风格分开存：换风格时把当前风格的图收进 home.artByTheme[旧风格]，
+// 再把新风格以前画过的图取回来；新风格没画过的就显示布局草图和程序画的小人。两种风格的图不会混在一个画面里。
+// 不调用任何接口，图片文件也不删。
+
+function allFurniture(house) {
+    return [...(house.furniture || []), ...(Array.isArray(house.storage) ? house.storage : [])];
+}
+
+// 这个家在某种风格下存着几张图（当前风格就数正在用的）
+export function artCountFor(home, theme) {
+    const house = home?.house;
+    if (!house) return 0;
+    if (homeTheme(home) === theme) {
+        return (home.art?.path ? 1 : 0)
+            + house.rooms.filter(r => r.art?.path).length
+            + allFurniture(house).filter(f => f.art?.path).length;
+    }
+    const saved = home.artByTheme?.[theme];
+    if (!saved) return 0;
+    const roomIds = new Set(house.rooms.map(r => r.id));
+    const furnitureIds = new Set(allFurniture(house).map(f => f.id));
+    return (saved.portrait?.path ? 1 : 0)
+        + Object.entries(saved.rooms || {}).filter(([id, v]) => roomIds.has(id) && v?.art?.path).length
+        + Object.entries(saved.furniture || {}).filter(([id, v]) => furnitureIds.has(id) && v?.path).length;
+}
+
+export function switchTheme(char, nextTheme) {
+    const home = getHome(char);
+    if (!home?.house) throw new Error('还没有家');
+    const next = themeId(nextTheme);
+    const prev = homeTheme(home);
+    if (next === prev) return home;
+    const house = home.house;
+    const archive = home.artByTheme && typeof home.artByTheme === 'object' ? home.artByTheme : {};
+
+    // 1. 当前风格的图收起来
+    const keep = { portrait: home.art || null, rooms: {}, furniture: {} };
+    for (const r of house.rooms) if (r.art) keep.rooms[r.id] = { art: r.art, useArt: r.useArt };
+    for (const f of allFurniture(house)) if (f.art) keep.furniture[f.id] = f.art;
+    archive[prev] = keep;
+
+    // 2. 撤下来
+    delete home.art;
+    for (const r of house.rooms) { delete r.art; delete r.useArt; }
+    for (const f of allFurniture(house)) delete f.art;
+
+    // 3. 新风格以前画过的取回来（已经删掉的房间、家具就不管了）
+    const saved = archive[next];
+    if (saved) {
+        if (saved.portrait) home.art = saved.portrait;
+        for (const r of house.rooms) {
+            const v = saved.rooms?.[r.id];
+            if (v?.art) { r.art = v.art; if (v.useArt === false) r.useArt = false; }
+        }
+        for (const f of allFurniture(house)) if (saved.furniture?.[f.id]) f.art = saved.furniture[f.id];
+        delete archive[next];
+    }
+
+    home.artByTheme = archive;
+    home.theme = next;
+    house.theme = next;
+    return setHome(char, home);
 }

@@ -1,13 +1,13 @@
 // 梦想家 · 界面 · 盖房子（选风格、大小、看设计提案、确认外貌入住）和房子档案
-import { THEMES, homeTheme, themeName } from './theme.js?mxj=0.6.8';
-import { esc } from './util.js?mxj=0.6.8';
-import { getSettings, currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.8';
-import { renderFloorPlan } from './furniture.js?mxj=0.6.8';
-import { characterView } from './character.js?mxj=0.6.8';
-import { HAIR_STYLES, ACCESSORIES } from './sprite.js?mxj=0.6.8';
-import { HOUSE_SIZES } from './home-rooms.js?mxj=0.6.8';
-import { designHouse, createHome, getLook } from './home-house.js?mxj=0.6.8';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.8';
+import { THEMES, homeTheme, themeName } from './theme.js?mxj=0.6.9';
+import { esc } from './util.js?mxj=0.6.9';
+import { getSettings, currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.9';
+import { renderFloorPlan } from './furniture.js?mxj=0.6.9';
+import { characterView } from './character.js?mxj=0.6.9';
+import { HAIR_STYLES, ACCESSORIES } from './sprite.js?mxj=0.6.9';
+import { HOUSE_SIZES } from './home-rooms.js?mxj=0.6.9';
+import { designHouse, createHome, getLook, switchTheme, artCountFor } from './home-house.js?mxj=0.6.9';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.9';
 
 let app = null;
 let state = null;
@@ -41,6 +41,24 @@ export function setup(a) {
                     if (state.draft.proposal && app.root()?.open) app.root().querySelector('.mxj-main').scrollTop = 0;
                 });
             },
+            'switch-theme'(el, char) {
+                const home = getHome(char);
+                const next = THEMES.find(t => t.id === el.dataset.id);
+                if (!home?.house || !next || state.busy) return;
+                const now = artCountFor(home, homeTheme(home));
+                const back = artCountFor(home, next.id);
+                const text = `换成「${next.name}」？`
+                    + (now ? `现在这套 ${now} 张图会收起来（不删），换回来就会回来。` : '')
+                    + (back ? `那个风格之前画过 ${back} 张，会原样拿回来。` : '那个风格还没画过图，先显示布局草图和小人，想要图再去绘制页画。');
+                void app.askConfirm(text, { yes: '换风格' }).then(ok => {
+                    if (!ok || state.busy || characterKey(currentCharacter()) !== characterKey(char)) return;
+                    switchTheme(char, next.id);
+                    state.artDraft = null;
+                    state.keepScroll = true;
+                    render();
+                    flash(`换成${next.name}了`);
+                });
+            },
             accept(el, char) {
                 if (!state.draft.proposal || state.busy) return;
                 const fresh = !getHome(char)?.house;
@@ -67,6 +85,16 @@ export function setup(a) {
     };
 }
 
+// 房子档案里的「小屋风格」：当前风格 + 换成另外两种
+function themeSwitcher(home) {
+    const cur = homeTheme(home);
+    const chips = THEMES.map(t => t.id === cur
+        ? `<button type="button" class="mxj-chip is-on" aria-pressed="true" disabled>${esc(t.name)} · 现在</button>`
+        : `<button type="button" class="mxj-chip" data-act="switch-theme" data-id="${t.id}" aria-pressed="false" ${state.busy ? 'disabled' : ''}>换成${esc(t.name)}${artCountFor(home, t.id) ? `（画过 ${artCountFor(home, t.id)} 张）` : ''}</button>`).join('');
+    return `<h3>小屋风格</h3><div class="mxj-chips is-wrap">${chips}</div>
+      <p class="mxj-muted">画好的图按风格分开保存。换过去以后，那个风格没画过的地方先显示布局草图和那个风格的小人，想要图再到绘制页按新风格画；换回来，之前那套图原样回来。换风格本身不花任何接口额度。</p>`;
+}
+
 // 入住前改发色、发型、配饰
 function draftLook(value, el, field) {
     if (state.draft.proposal) {
@@ -81,7 +109,7 @@ function viewBuild(char, home) {
     const d = state.draft;
     const s = getSettings();
     const name = characterView(char).name;
-    const themes = home?.house ? `<p class="mxj-muted">固定风格：${esc(themeName(homeTheme(home)))}。重新设计房屋也会保留此风格。</p>` : `<h3>小屋风格</h3><p class="mxj-muted">入住后固定风格，人物与家具沿用同一套表现。三个主题目前为独立界面主题；图片需要配置生图连接后生成。</p><div class="mxj-chips is-wrap">${THEMES.map(t => `<button type="button" class="mxj-chip${d.theme === t.id ? ' is-on' : ''}" data-act="theme" data-id="${t.id}" aria-pressed="${d.theme === t.id}">${esc(t.name)}</button>`).join('')}</div><p class="mxj-muted">${esc(THEMES.find(t => t.id === d.theme)?.note || '')}</p>`;
+    const themes = home?.house ? themeSwitcher(home) : `<h3>小屋风格</h3><p class="mxj-muted">人物、房间和家具的图都按这个风格画。入住后也能在「房子档案」里换风格，画好的图按风格分开保存，不会混在一起。图片需要配置生图连接后生成。</p><div class="mxj-chips is-wrap">${THEMES.map(t => `<button type="button" class="mxj-chip${d.theme === t.id ? ' is-on' : ''}" data-act="theme" data-id="${t.id}" aria-pressed="${d.theme === t.id}">${esc(t.name)}</button>`).join('')}</div><p class="mxj-muted">${esc(THEMES.find(t => t.id === d.theme)?.note || '')}</p>`;
     const sizes = HOUSE_SIZES.map(z => `
       <button type="button" class="mxj-size${d.size === z.id ? ' is-on' : ''}" data-act="size" data-id="${z.id}" aria-pressed="${d.size === z.id}">
         <b>${esc(z.name)}</b><span>${esc(z.sub)}</span>

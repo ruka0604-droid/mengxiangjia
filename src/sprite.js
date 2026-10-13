@@ -1,8 +1,8 @@
-import { moodFace } from './theme.js?mxj=0.6.8';
+import { moodFace } from './theme.js?mxj=0.6.9';
 // 梦想家 · Q 版像素小人
 // 16×24 的像素格，插件自己画：发型、发色、肤色、眼睛、衣服、配饰都来自「形象」数据，
 // 姿势（站 / 坐）、手里的东西（书 / 杯子）、闭眼按他正在做的事来定。
-import { hexOr, shade, esc } from './util.js?mxj=0.6.8';
+import { hexOr, shade, esc } from './util.js?mxj=0.6.9';
 
 export const GRID_W = 16;
 export const GRID_H = 24;
@@ -326,7 +326,7 @@ export function spriteInRoom(look, pose, anchor, sceneH, { label = '他', theme 
     const z = pose.sleepy
         ? `<text x="${(cx + w / 2 - 2).toFixed(1)}" y="${(y + 10).toFixed(1)}" font-size="11" font-weight="700" fill="#FBFAF6" stroke="${OUTLINE}" stroke-width="0.6" class="mxj-zzz">z</text>`
         : '';
-    return `<g class="mxj-sprite" data-act="avatar" role="button" tabindex="0" aria-label="${esc(label)}">${spriteSvg(look, pose, { x: x.toFixed(1), y: y.toFixed(1), width: w.toFixed(1), height: h.toFixed(1), theme })}${z}<text x="${cx}" y="${y - 7}" text-anchor="middle" font-size="${theme === 'scrapbook' ? 10 : 15}" fill="#392B35" stroke="#FFF9EF" stroke-width="0.5" paint-order="stroke">${esc(moodFace(mood,theme))}</text></g>`;
+    return `<g class="mxj-sprite" data-act="avatar" role="button" tabindex="0" aria-label="${esc(label)}"><g class="mxj-bob is-${theme === 'pixel' ? 'pixel' : 'soft'}">${spriteSvg(look, pose, { x: x.toFixed(1), y: y.toFixed(1), width: w.toFixed(1), height: h.toFixed(1), theme })}</g>${z}<text x="${cx}" y="${y - 7}" text-anchor="middle" font-size="${theme === 'scrapbook' ? 10 : 15}" fill="#392B35" stroke="#FFF9EF" stroke-width="0.5" paint-order="stroke">${esc(moodFace(mood,theme))}</text></g>`;
 }
 
 // 基础矢量 Q 版，共享外貌数据，不冒充生成立绘。

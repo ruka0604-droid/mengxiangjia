@@ -1,7 +1,7 @@
-import { mountFloating, refreshFloating, destroyFloating } from './src/floating.js?mxj=0.6.8';
+import { mountFloating, refreshFloating, destroyFloating } from './src/floating.js?mxj=0.6.9';
 // 梦想家 · 入口：魔法棒菜单 + 可选浮窗
-import { getSettings } from './src/settings.js?mxj=0.6.8';
-import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.6.8';
+import { getSettings } from './src/settings.js?mxj=0.6.9';
+import { ctx, LOG_PREFIX } from './src/util.js?mxj=0.6.9';
 
 const WAND_ID = 'mxj_wand_entry';
 const ICON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>';
@@ -12,7 +12,7 @@ let chatHandler = null;
 let initialized = false;
 
 async function loadUi() {
-    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.6.8');
+    if (!uiModule) uiModule = await import('./src/ui.js?mxj=0.6.9');
     uiModule.revive?.();
     return uiModule;
 }

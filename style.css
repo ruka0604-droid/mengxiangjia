@@ -406,13 +406,14 @@
 
 /* 像素小人 */
 #mxj-root .mxj-sprite { cursor: pointer; outline: none; }
-#mxj-root .mxj-sprite > svg { animation: mxj-bob 1.6s steps(2, jump-none) infinite; transform-box: fill-box; }
-#mxj-root .mxj-sprite:focus-visible > svg { filter: drop-shadow(0 0 2px #FFFFFF) drop-shadow(0 0 1px var(--mxj-red)); }
+#mxj-root .mxj-sprite > .mxj-bob { animation: mxj-bob 1.6s steps(2, jump-none) infinite; transform-box: fill-box; transform-origin: center bottom; }
+#mxj-root .mxj-sprite > .mxj-bob.is-soft { animation: mxj-bob 2.4s ease-in-out infinite; }
+#mxj-root .mxj-sprite:focus-visible svg { filter: drop-shadow(0 0 2px #FFFFFF) drop-shadow(0 0 1px var(--mxj-red)); }
 #mxj-root .mxj-zzz { animation: mxj-zzz 2.4s ease-in-out infinite; }
 @keyframes mxj-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5px); } }
 @keyframes mxj-zzz { 0%, 100% { opacity: .2; } 50% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) {
-    #mxj-root .mxj-sprite > svg, #mxj-root .mxj-zzz { animation: none; }
+    #mxj-root .mxj-sprite > .mxj-bob, #mxj-root .mxj-zzz, #mxj-root .mxj-art-person img { animation: none; }
 }
 #mxj-root .mxj-pixel { image-rendering: pixelated; display: block; width: 100%; height: auto; }
 #mxj-root .mxj-look-preview { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; background: var(--mxj-ground); border-radius: 12px; padding: 10px 8px 6px; }
@@ -540,7 +541,11 @@
 
 #mxj-root .mxj-art-person { position:absolute; right:4%; bottom:0; width:38%; height:76%; padding:0; border:0; background:none; box-shadow:none; display:block; }
 #mxj-root .mxj-art-person.is-storybook { width:52%; height:88%; }
-#mxj-root .mxj-art-person img { width:100%; height:100%; object-fit:contain; object-position:bottom; }
+#mxj-root .mxj-art-person img { width:100%; height:100%; object-fit:contain; object-position:bottom; transform-origin:center bottom; animation: mxj-breathe 3.2s ease-in-out infinite; }
+/* 画好的人物立绘也轻轻呼吸；像素风一格一格地跳 */
+@keyframes mxj-breathe { 0%, 100% { transform: translateY(0) scaleY(1); } 50% { transform: translateY(-1.2%) scaleY(1.008); } }
+#mxj-root .mxj-art-person.is-pixel img { animation: mxj-bob-img 1.6s steps(2, jump-none) infinite; }
+@keyframes mxj-bob-img { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.5%); } }
 #mxj-root .mxj-art-person span { position:absolute; top:8px; right:0; font-size:22px; background:var(--mxj-paper); padding:3px 8px; border-radius:12px; }
 #mxj-root .mxj-art-preview { display:block; max-width:100%; width:auto; max-height:360px; object-fit:contain; margin:auto; background:repeating-conic-gradient(#ECE7DF 0 25%,#FFF9F0 0 50%) 0/20px 20px; border-radius:8px; }
 #mxj-root .mxj-art-preview.is-room { width:100%; }

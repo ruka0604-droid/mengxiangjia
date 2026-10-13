@@ -1,10 +1,10 @@
 // 梦想家 · 界面 · 他的样子（外貌描述、像素小人的发型配饰颜色）
-import { homeTheme, themeName, moodFace } from './theme.js?mxj=0.6.8';
-import { esc } from './util.js?mxj=0.6.8';
-import { currentCharacter, getHome, setHome } from './settings.js?mxj=0.6.8';
-import { spriteSvg, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.6.8';
-import { getLook, setLook, generateLook } from './home-house.js?mxj=0.6.8';
-import { viewNoChar } from './ui-common.js?mxj=0.6.8';
+import { homeTheme, themeName, moodFace } from './theme.js?mxj=0.6.9';
+import { esc } from './util.js?mxj=0.6.9';
+import { currentCharacter, getHome, setHome } from './settings.js?mxj=0.6.9';
+import { spriteSvg, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.6.9';
+import { getLook, setLook, generateLook } from './home-house.js?mxj=0.6.9';
+import { viewNoChar } from './ui-common.js?mxj=0.6.9';
 
 let app = null;
 let state = null;
@@ -47,7 +47,7 @@ function viewLook(char, home) {
     const colors = (key, label) => `<div class="mxj-field"><span>${label}</span><div class="mxj-colors">${LOOK_COLORS[key].map(c => `<button type="button" class="mxj-color${c.toLowerCase() === String(look[key]).toLowerCase() ? ' is-on' : ''}" style="background:${c}" data-act="look-color" data-key="${key}" data-color="${c}" aria-label="${label}换成这个颜色" aria-pressed="${c.toLowerCase() === String(look[key]).toLowerCase()}"></button>`).join('')}</div></div>`;
     return `
       <section class="mxj-card">
-        <h3>${esc(themeName(homeTheme(home)))} · 风格已固定</h3><label class="mxj-field"><span>确认的外貌（可手动修改，修改后可重新绘制人物）</span><textarea class="mxj-input" data-field="appearance" rows="4">${esc(home.appearance || "")}</textarea></label><p class="mxj-muted">当前表情：${esc(moodFace(home.presence?.mood, homeTheme(home)))}，根据回家时的心情显示。</p><div class="mxj-look-preview${home.art?.path ? ' is-art' : ''}">${home.art?.path ? `<img class="mxj-art-preview" src="${esc(home.art.path)}" alt="已保存的角色形象">` : preview}</div><button type="button" class="mxj-btn is-primary" data-act="go" data-view="art">${home.art?.path?'重新生成形象（额外消耗生图请求）':'按确认外貌绘制人物（首次一次）'}</button>
+        <h3>${esc(themeName(homeTheme(home)))}</h3><label class="mxj-field"><span>确认的外貌（可手动修改，修改后可重新绘制人物）</span><textarea class="mxj-input" data-field="appearance" rows="4">${esc(home.appearance || "")}</textarea></label><p class="mxj-muted">当前表情：${esc(moodFace(home.presence?.mood, homeTheme(home)))}，根据回家时的心情显示。</p><div class="mxj-look-preview${home.art?.path ? ' is-art' : ''}">${home.art?.path ? `<img class="mxj-art-preview" src="${esc(home.art.path)}" alt="已保存的角色形象">` : preview}</div><button type="button" class="mxj-btn is-primary" data-act="go" data-view="art">${home.art?.path?'重新生成形象（额外消耗生图请求）':'按确认外貌绘制人物（首次一次）'}</button>
         <p class="mxj-muted">确认的描述用于绘制人物。已保存的立绘暂不生成动作动画，心情通过表情显示。</p>
         <button type="button" class="mxj-btn" data-act="look-gen" ${state.busy ? 'disabled' : ''}>重新提取基础外貌数据</button>
       </section>

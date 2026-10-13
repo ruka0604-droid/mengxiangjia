@@ -1,6 +1,6 @@
 // 梦想家 · 可选浮窗入口。按钮点击打开，拖动只移动位置。
-import { getSettings, updateSettings, currentCharacter, getHome } from './settings.js?mxj=0.6.8';
-import { homeTheme } from './theme.js?mxj=0.6.8';
+import { getSettings, updateSettings, currentCharacter, getHome } from './settings.js?mxj=0.6.9';
+import { homeTheme } from './theme.js?mxj=0.6.9';
 
 const ID = 'mxj-floating-entry';
 const SIZE = 56;

@@ -83,6 +83,7 @@ EOF
 - `house.storage[]`：仓库。收进仓库和移除房间时整件家具放进来（保留 `art`、`dy` 等），记 `previousRoom`。0.5.6 曾误存到 `furnitureStorage`，`settings.getHome()` 会自动合并过来
 - 房间 `type`：房间种类（客厅、卧室……），用 `home-rooms.js` 的 `roomTypeOf()` 从名字认；`art` + `useArt`：画好的房间背景，`useArt === false` 时显示纯色墙地
 - `look`：像素小人形象 `{hairStyle, hair, skin, eyes, outfit, accent, pants, shoes, accessory}`；没有时按名字给默认样子
+- `artByTheme`：中途换风格时收起来的图，`{风格: {portrait, rooms:{房间id:{art,useArt}}, furniture:{家具id:art}}}`。当前风格的图仍在 `home.art`、`room.art`、`furniture.art` 上；换风格只能用 `home-house.js` 的 `switchTheme()`，不要直接改 `home.theme`，否则新旧画风的图会混在一起
 - `diary`：`{mode:'visit'|'daily'|'manual', entries[{author, date, weather, text, quote, stamp}], readAt}`。mode 为 visit 时，他的日记并在回家那次调用里一起生成
 
 房间 `arranged` 为真后完全按用户摆的位置画；否则自动排开防重叠。
@@ -92,6 +93,7 @@ EOF
 - 面板是挂在 `body` 上的 `<dialog>` + `showModal()`，尺寸跟 `visualViewport`（CSS 变量 `--mxj-vw/vh/vl/vt`），TT 下加 `data-tt-mobile-surface`。
 - 事件用 `data-act` 委托；输入用 `data-field`。改界面后调用 `render()`，需要保留滚动位置时先设 `state.keepScroll = true`。
 - 生成一律走 `run(提示文字, signal => …)`，自带忙碌条和「取消」。
+- 房间里小人的晃动加在 `.mxj-sprite > .mxj-bob` 这层 `<g>` 上，不要加在嵌套的 `<svg>` 上（iPhone 的浏览器不一定让它动）。画好的立绘 `.mxj-art-person img` 有呼吸动画。
 - 每页一个 `view-*.js`，导出 `setup(app)`，返回这一页的 `views`（画页面）、`titles`（标题）、`actions`（`data-act` 按钮）、`fields`（`data-field` 改完时）、`inputs`（边打边存）、`forms`（回车提交）、`enter`（进页面前）、`after`（画完之后）。`ui.js` 把它们合起来分发；同名重复登记会在控制台警告。`app` 里有 `state`、`render`、`run`、`flash`、`go`、`askConfirm`、`root()`、`renderView(页名, char, home)`、`doVisit()`。
 - 页面文件之间不互相 import，要用别的页就走 `app`（比如没房子时首页画盖房子页：`app.renderView('build', …)`）。没有登记的 `data-field` 当设置项存（`view-settings.js` 的 `saveField`）。
 - 新加按钮：在对应页面的 `actions` 里加一项；新加页面：新建 `view-xxx.js`，在 `ui.js` 的 `pages` 里加上。
