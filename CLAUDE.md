@@ -55,11 +55,12 @@ EOF
 | `src/home-visit.js` | 他回家（含纸条回信、他留的纸条、轮到他时的日记）、回应他、什么时候回家 |
 | `src/home-notes.js` | 小纸条：贴纸条、请他回、请他留一张、已读 |
 | `src/home-diary.js` | 交换日记 |
-| `src/home-decor.js` | 布置改动记录、「他挑的」、按描述做家具 |
+| `src/home-decor.js` | 布置改动记录、「他挑的」、他帮忙摆（`planArrangement` 只出方案，位置由 `decorate.js` 的 `applyArrangement` 用 `mutate` 套用，能撤销）、按描述做家具 |
 | `src/furniture.js` | 家具图库（`CATALOG` + 每种的 SVG 画法）、房间正面图绘制、平面图、小预览 |
 | `src/floating.js` | 可选的小屋浮窗入口（拖动换位置、轻点打开） |
 | `src/theme.js` | 三套主题（手帐 / 像素 / 绘本）和心情表情 |
-| `src/art.js`、`src/imageApi.js`、`src/inflate.js` | 生图：准备提示词 → 请求一张图 → 预览 → 保存到酒馆 `/api/images/upload` |
+| `src/art.js`、`src/imageApi.js`、`src/inflate.js` | 生图：准备提示词 → 请求一张图 → 预览 → 保存到酒馆 `/api/images/upload`。`prepareFurnitureBatch` 一次整理一间房没画的家具 |
+| `src/cutout.js` | 去背景：人物和家具画完后，四周是一整块纯色才去（从边缘往里擦、边缘褪色、裁空白）；拿不准就不动。原图留在草稿的 `rawDataUrl`，预览里可以换回去 |
 | `src/sprite.js` | Q 版像素小人：16×24 像素格，按形象数据画；`poseFor` 按家具和他在做的事定站/坐/拿书/拿杯/闭眼 |
 | `src/decorate.js` | 布置模式：拖动吸附、工具条、抽屉、仓库、墙面地板颜色、撤销重做 |
 | `src/ui.js` | 界面核心：全屏 `<dialog>` 面板的打开关闭、`askConfirm`、`render`、忙碌条 `run`、`go` 换页、事件分发；本身不画页面 |
@@ -79,7 +80,7 @@ EOF
 - `visits[]`：每次回家 `{event, options, turns[{user,reply}]}`，最多留 40 次
 - `notes[]`：`{from:'user'|'char', kind, place, text, at, deferred, readAt, replyTo, replyId}`，最多留 300 张
 - `changes[]` + `changesSeenAt`：用户布置的改动，回家时写进提示词
-- `suggestions`：「他挑的」当前结果
+- `suggestions`：「他挑的」当前结果（布置抽屉最后一页 0.6.12 起叫「问问他」，里面有「帮忙挑」和「帮忙摆」）
 - `house.storage[]`：仓库。收进仓库和移除房间时整件家具放进来（保留 `art`、`dy` 等），记 `previousRoom`。0.5.6 曾误存到 `furnitureStorage`，`settings.getHome()` 会自动合并过来
 - 房间 `type`：房间种类（客厅、卧室……），用 `home-rooms.js` 的 `roomTypeOf()` 从名字认；`art` + `useArt`：画好的房间背景，`useArt === false` 时显示纯色墙地
 - `look`：像素小人形象 `{hairStyle, hair, skin, eyes, outfit, accent, pants, shoes, accessory}`；没有时按名字给默认样子
@@ -109,12 +110,13 @@ EOF
 - `generate()` 会拦下接口当成正文返回的「内容审核拒绝 / 报错」（`api.js` 的 `REFUSAL_RE`），抛错不保存——这算「没有正文」，不违反「不加让生成失败的校验」那条；模型只是格式不对、缺字段时仍然兜底。
 - 要看外貌的生成（盖房子、定小人外形、画人物）用 `gatherContext(char, { worldBookBudget: 18000 })` 多读世界书；世界书里讲外貌的条目会排在前面。
 - 画人物准备提示词：确认过外貌（`home.appearance`）就只发确认的外貌，不发角色卡和世界书（成人内容常让文字接口整条拒绝）；没确认才读卡和世界书。生图错误按状态码给出说明（`imageApi.js` 的 `requestImage`），4 代以后的模型自动按结构化描述发（`needsStructured`），Key 自动去掉「Bearer」和空白（`cleanImageKey`），填写检查在 `imageConfigProblems`。用户都用 NovelAI，界面里仍然不写服务名、模型名。
-- 生图模型列表：`imageApi.js` 的 `fetchImageModels`，结果只放在 `state.imageModels`（不存档）；生图出错时 `errorReason()` 把服务给的原因带出来并隐藏 Key。
+- 生图模型列表：`imageApi.js` 的 `fetchImageModels`，结果只放在 `state.imageModels`（不存档）；生图出错时 `errorReason()` 把服务给的原因带出来并隐藏 Key。官方地址直接给 `RECOMMENDED_IMAGE_MODELS`（常用模型完整 ID + 中文说明），别的地址拉不到时也退回这份——这是作者要求的例外：下拉框里可以出现模型 ID，但界面文字和 README 仍然不写服务名。
+- 画布大小：人物用「人物宽高」；家具按 `furniture.js` 的 `artShape(type)`（竖长 / 方 / 扁）选竖图、方图、横图（`imageApi.js` 的 `imageSize`）；房间用横图。
 - 2026-10-13 另一条开发线（网页上传的 0.5.8–0.5.16、0.5.1-stable2）已并入 0.6.2。没并的：回家后为漏掉的纸条/日记再单独补发请求（违反「调用次数」），回家事件/回应/日记缺字段就报错（违反「兜底」），人物生图不用确认的外貌、改用正则提取（会绕过用户确认的外貌），「保存全部设置」按钮（0.6.1 已修好设置丢失的根本原因）。
 
 ## 调用次数
 
-每个动作一次调用：盖房子（含像素小人外形）、回家（含纸条回信、他留的纸条、轮到他时的日记）、每次回应、纸条马上回、他挑的、描述做家具、重新生成形象、叫他写日记。打开小屋本身不调用；只有到了回家时间才会触发回家那一次。
+每个动作一次调用：盖房子（含像素小人外形）、回家（含纸条回信、他留的纸条、轮到他时的日记）、每次回应、纸条马上回、他挑的、他帮忙摆、描述做家具、重新生成形象、叫他写日记。生图：准备一张图的描述一次文字调用；「没画的家具一起画」整间房的描述合成一次文字调用，然后每件一张图。打开小屋本身不调用；只有到了回家时间才会触发回家那一次。
 
 ## 测试
 

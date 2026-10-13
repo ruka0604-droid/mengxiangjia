@@ -1,15 +1,15 @@
 // 梦想家 · 布置模式
-import { esc, uid, clip } from './util.js?mxj=0.6.11';
-import { getHome, setHome } from './settings.js?mxj=0.6.11';
-import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.6.11';
-import { recordChanges, suggestFurniture, furnitureFromText } from './home-decor.js?mxj=0.6.11';
-import { characterView } from './character.js?mxj=0.6.11';
+import { esc, uid, clip } from './util.js?mxj=0.6.12';
+import { getHome, setHome } from './settings.js?mxj=0.6.12';
+import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.6.12';
+import { recordChanges, suggestFurniture, furnitureFromText, planArrangement } from './home-decor.js?mxj=0.6.12';
+import { characterView } from './character.js?mxj=0.6.12';
 
 const ITEM_COLORS = ['#2F5D4E', '#B2584A', '#E2C38A', '#8FA9B8', '#6E4B30', '#F4F1EA', '#2A2A2A', '#D99A4E', '#9C7BB0', '#E8A0A8'];
 const WALL_COLORS = ['#C9D3C0', '#E9E1CF', '#DDE7EA', '#F3E3E0', '#D8D2E6', '#F2E6C8', '#3E5A4C', '#2F3E4E'];
 const FLOOR_COLORS = ['#A87B55', '#C9A27A', '#7A5638', '#D9D4C8', '#8E8E8E', '#B9C4B4'];
 const SCALE_NAMES = { 0.8: '小', 1: '中', 1.25: '大' };
-const TABS = [...GROUPS, '仓库', '他挑的'];
+const TABS = [...GROUPS, '仓库', '问问他'];
 
 const IC = {
     undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg>',
@@ -36,6 +36,7 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
         redo: [],
         changes: [],
         describe: false,
+        said: null, // 他摆完说的话 { roomId, text }
     };
     state.deco = deco;
 
@@ -258,8 +259,19 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
         } else {
             const sug = home.suggestions && home.suggestions.roomId === room.id ? home.suggestions.items : [];
             const name = characterView(char).name;
-            body = `${sug.length ? `<div class="mxj-tiles">${sug.map((s, i) => tile(home, { act: 'deco-add-suggested', type: s.type, name: s.name, color: s.color, id: String(i), badge: '他挑的', why: s.why })).join('')}</div>` : `<p class="mxj-muted mxj-center">让${esc(name)}按自己的喜好，给${esc(room.name)}挑几件东西。</p>`}
-              <button type="button" class="mxj-btn" data-act="deco-suggest" ${state.busy ? 'disabled' : ''}>${sug.length ? '让他再挑几件' : '让他挑几件'}</button>`;
+            const count = home.house.furniture.filter(x => x.room === room.id).length;
+            const said = deco.said && deco.said.roomId === room.id ? deco.said.text : '';
+            body = `<div class="mxj-ask">
+                <h4>帮忙挑</h4>
+                ${sug.length ? `<div class="mxj-tiles">${sug.map((s, i) => tile(home, { act: 'deco-add-suggested', type: s.type, name: s.name, color: s.color, id: String(i), badge: '他挑的', why: s.why })).join('')}</div>` : `<p class="mxj-muted mxj-center">让${esc(name)}按自己的喜好，给${esc(room.name)}挑几件东西。</p>`}
+                <button type="button" class="mxj-btn" data-act="deco-suggest" ${state.busy ? 'disabled' : ''}>${sug.length ? '让他再挑几件' : '让他挑几件'}</button>
+              </div>
+              <div class="mxj-ask">
+                <h4>帮忙摆</h4>
+                ${said ? `<p class="mxj-said">${esc(name)}：「${esc(said)}」</p>` : ''}
+                <p class="mxj-muted mxj-center">${count ? `让${esc(name)}按自己的习惯，把${esc(room.name)}里的 ${count} 件东西重新摆一遍。不喜欢可以点撤销。` : `${esc(room.name)}里还没有东西，先放几件再让他摆。`}</p>
+                ${count ? `<button type="button" class="mxj-btn" data-act="deco-arrange" ${state.busy ? 'disabled' : ''}>${said ? '让他再摆一次' : '让他帮忙摆'}</button>` : ''}
+              </div>`;
         }
         return `<section class="mxj-drawer-card">
           <div class="mxj-tabs" role="tablist">${tabs}</div>
@@ -482,10 +494,15 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
             case 'deco-floor': {
                 const room = currentRoom(home);
                 const key = act === 'deco-wall' ? 'wall' : 'floor';
+                // 画好的背景会盖住纯色墙地：选了颜色就说明想看颜色，自动切到纯色墙和地板
+                const coverArt = !!room.art?.path && room.useArt !== false;
                 mutate(char, h => {
-                    h.house.rooms.find(r => r.id === room.id)[key] = el.dataset.color;
+                    const r = h.house.rooms.find(x => x.id === room.id);
+                    r[key] = el.dataset.color;
+                    if (coverArt) r.useArt = false;
                 }, `给${room.name}换了${key === 'wall' ? '墙面' : '地板'}颜色`);
                 rerender();
+                if (coverArt) flash('已切到纯色墙和地板，画好的背景还在，想用回来就在上面选「用画好的背景」');
                 return true;
             }
             case 'deco-add':
@@ -512,6 +529,23 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
             case 'deco-suggest':
                 void run('他在挑东西…', signal => suggestFurniture(char, currentRoom(home).id, { signal }));
                 return true;
+            case 'deco-arrange': {
+                const room = currentRoom(home);
+                const items = home.house.furniture.filter(x => x.room === room.id);
+                if (!items.length) return true;
+                const { positions } = renderRoom(room, items, home.house.palette);
+                void run(`${characterView(char).name}在摆${room.name}…`, async signal => {
+                    const plan = await planArrangement(char, room.id, positions, { signal });
+                    if (signal.aborted) return;
+                    deco.showScene = applyArrangement(char, plan) > 0;
+                }).then(() => {
+                    // 摆完把房间翻回视野里，让人马上看到变化
+                    if (!deco.showScene) return;
+                    deco.showScene = false;
+                    getRoot()?.querySelector('.mxj-scene.is-decorating')?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+                });
+                return true;
+            }
             case 'deco-describe':
                 deco.describe = !deco.describe;
                 rerender();
@@ -523,6 +557,44 @@ export function createDecorator({ state, render, run, flash, getRoot }) {
             default:
                 return false;
         }
+    }
+
+    // 套用他摆的位置：整个算一步，能撤销；没给的、给错的那件保持原样
+    function applyArrangement(char, plan) {
+        const home = getHome(char);
+        const room = home?.house?.rooms.find(r => r.id === plan.roomId);
+        if (!room) throw new Error('这个房间已经不在了');
+        const name = characterView(char).name;
+        let changed = 0;
+        mutate(char, h => {
+            const r = h.house.rooms.find(x => x.id === plan.roomId);
+            freezeRoom(h, r);
+            for (const m of plan.moves) {
+                const it = h.house.furniture.find(x => x.id === m.id && x.room === r.id);
+                if (!it) continue;
+                const def = CATALOG[it.type];
+                if (m.x !== null) {
+                    const half = def.w / SCENE_W * 50;
+                    let x = Math.round(Math.max(half, Math.min(100 - half, m.x)) / SNAP) * SNAP;
+                    if (x > 100 - half) x -= SNAP;
+                    if (x < half) x += SNAP;
+                    if (Math.abs(x - (Number(it.x) || 0)) >= SNAP) { it.x = x; changed++; }
+                }
+                if (m.row && (def.layer === 'back' || def.layer === 'front') && m.row !== effectiveRow(it)) { it.row = m.row; changed++; }
+                if (m.flip !== null && !!it.flip !== m.flip) { it.flip = m.flip; changed++; }
+            }
+            if (plan.wall && plan.wall !== r.wall) { r.wall = plan.wall; changed++; }
+            if (plan.floor && plan.floor !== r.floor) { r.floor = plan.floor; changed++; }
+        }, `${name}帮忙重新摆了${room.name}`);
+        if (!changed) {
+            // 什么都没动：撤销栈里这一步也拿掉，不留一条空改动
+            deco.undo.pop();
+            deco.changes.pop();
+        }
+        deco.selected = '';
+        deco.said = { roomId: plan.roomId, text: plan.say || (changed ? '摆好了，你看看。' : '我看了看，现在这样就挺好。') };
+        flash(changed ? `${name}摆好了${room.name}，不喜欢可以点撤销` : `${name}觉得现在这样就挺好，没有挪`);
+        return changed;
     }
 
     async function describe(char, text) {

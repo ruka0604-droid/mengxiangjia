@@ -1,12 +1,12 @@
-// 梦想家 · 布置：改动记录、「他挑的」、按描述做家具
-import { homeTheme, themeName } from './theme.js?mxj=0.6.11';
-import { now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.11';
-import { generate } from './api.js?mxj=0.6.11';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.11';
-import { getHome, setHome } from './settings.js?mxj=0.6.11';
-import { CATALOG, CATALOG_PROMPT } from './furniture.js?mxj=0.6.11';
-import { SUGGEST_SYSTEM, DESCRIBE_SYSTEM } from './home-prompts.js?mxj=0.6.11';
-import { liveHome, houseSummary } from './home-shared.js?mxj=0.6.11';
+// 梦想家 · 布置：改动记录、「他挑的」、他帮忙摆、按描述做家具
+import { homeTheme, themeName } from './theme.js?mxj=0.6.12';
+import { now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.12';
+import { generate } from './api.js?mxj=0.6.12';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.12';
+import { getHome, setHome } from './settings.js?mxj=0.6.12';
+import { CATALOG, CATALOG_PROMPT, SCENE_W, effectiveRow } from './furniture.js?mxj=0.6.12';
+import { SUGGEST_SYSTEM, DESCRIBE_SYSTEM, ARRANGE_SYSTEM } from './home-prompts.js?mxj=0.6.12';
+import { liveHome, houseSummary } from './home-shared.js?mxj=0.6.12';
 
 export function pendingChanges(home) {
     const seen = Number(home?.changesSeenAt) || 0;
@@ -85,6 +85,68 @@ ${room.name}${room.note ? `（${room.note}）` : ''}
     fresh.suggestions = { roomId, at: now(), items };
     setHome(char, fresh);
     return items;
+}
+
+// 他帮忙摆：一次调用，拿回每件东西的新位置（左右、靠墙还是靠前、朝向）和一句话；
+// 没给、给错的那件就不动，墙地颜色只在房间用纯色时才问。位置由布置模式套用（能撤销）
+export async function planArrangement(char, roomId, positions = {}, { signal } = {}) {
+    const home = getHome(char);
+    const room = home?.house?.rooms.find(r => r.id === roomId);
+    if (!room) throw new Error('找不到这个房间');
+    const items = home.house.furniture.filter(f => f.room === roomId);
+    if (!items.length) throw new Error(`${room.name}里还没有东西可以摆`);
+    const showsArt = !!room.art?.path && room.useArt !== false;
+    const rows = items.map(f => {
+        const def = CATALOG[f.type];
+        const layer = def.layer;
+        const where = layer === 'wall' ? '挂墙上' : layer === 'rug' ? '铺地上' : effectiveRow(f) === 'back' ? '靠墙一排' : '靠前一排';
+        const x = Math.round(Number(positions[f.id] ?? f.x ?? 50));
+        return `- id: ${f.id}；${f.name || def.label}（${def.label}）；${where}；现在 x=${x}；宽约 ${Math.round(def.w / SCENE_W * 100)}${f.flip ? '；朝左' : ''}`;
+    }).join('\n');
+    const info = await gatherContext(char);
+    const user = `${contextBlock(info, { withRecent: false })}
+
+# 你们的家
+${houseSummary(home)}
+
+# 现在要摆的房间
+${room.name}${room.note ? `（${room.note}）` : ''}
+${showsArt ? '' : `墙面颜色 ${room.wall || home.house.palette.wall}，地板颜色 ${room.floor || home.house.palette.floor}
+`}
+# 房间里的东西
+${rows}
+
+# 怎么摆
+- 从正面看这个房间。x 是左右位置，0 最左、100 最右；宽是它占房间宽度的百分比，同一排的东西别叠在一起。
+- 挂墙上的、铺地上的只能左右挪；落地的可以选 row："back"（靠墙一排）或 "front"（靠前一排）。
+- flip 为 true 就是朝左摆（默认朝右）。
+- 每件都写上；不想动的照抄现在的 x。${showsArt ? '' : '\n- 想换墙面或地板颜色就写 wall / floor（#RRGGBB），不换就不写。'}
+- say 是你摆完说的一句话（30 字以内，第一人称）。
+
+# 输出格式
+{ "items": [ { "id": "…", "x": 30, "row": "back", "flip": false } ], "say": "…" }`;
+    const raw = await generate({ system: ARRANGE_SYSTEM, user, signal, maxTokens: Math.min(3000, 600 + items.length * 60) });
+    const parsed = parseJsonLoose(raw);
+    const list = Array.isArray(parsed?.items) ? parsed.items : (Array.isArray(parsed) ? parsed : []);
+    const ids = new Set(items.map(f => f.id));
+    const moves = list.map(m => {
+        if (!m || typeof m !== 'object' || !ids.has(String(m.id))) return null;
+        const x = Number(m.x);
+        return {
+            id: String(m.id),
+            x: Number.isFinite(x) ? x : null,
+            row: m.row === 'back' || m.row === 'front' ? m.row : '',
+            flip: typeof m.flip === 'boolean' ? m.flip : null,
+        };
+    }).filter(Boolean);
+    const say = asText(parsed?.say || parsed?.comment || (parsed ? '' : raw), 80);
+    return {
+        roomId,
+        moves,
+        wall: showsArt ? '' : hexOr(parsed?.wall, ''),
+        floor: showsArt ? '' : hexOr(parsed?.floor, ''),
+        say,
+    };
 }
 
 export async function furnitureFromText(char, text, { signal } = {}) {

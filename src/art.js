@@ -1,10 +1,13 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.6.11';
-import { gatherContext } from './character.js?mxj=0.6.11';
-import { homeTheme } from './theme.js?mxj=0.6.11';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.11';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.11';
-import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.11';
+import { generate } from './api.js?mxj=0.6.12';
+import { gatherContext } from './character.js?mxj=0.6.12';
+import { homeTheme } from './theme.js?mxj=0.6.12';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.12';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.12';
+import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.12';
+import { artShape, CATALOG } from './furniture.js?mxj=0.6.12';
+import { cleanBackground } from './cutout.js?mxj=0.6.12';
+import { parseJsonLoose } from './util.js?mxj=0.6.12';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -78,29 +81,55 @@ export async function prepareArt(char,kind,id,{signal}={}) {
         ? CHIBI_NEGATIVES.base.replace(/^baby, toddler, infant, /, '')
         : CHIBI_NEGATIVES.base;
     const portraitNegative = `${ageNeutralBaseNegative}, ${CHIBI_NEGATIVES[theme] || ''}, ${ART_NEGATIVE}`.replace(/,\s*,/g, ', ').replace(/,\s*$/,'');
-    return {kind,id,theme,prompt,negative:kind==='portrait'?portraitNegative:ART_NEGATIVE,owner:characterKey(char),house:home.house};
+    const shape=kind==='portrait'?'portrait':kind==='room'?'landscape':artShape(target.type);
+    return {kind,id,theme,prompt,negative:kind==='portrait'?portraitNegative:ART_NEGATIVE,shape,owner:characterKey(char),house:home.house};
 }
+
+// 一间房里还没画的家具一起准备：一次文字调用写好所有描述，缺哪件就用家具种类兜底
+export async function prepareFurnitureBatch(char,roomId,{signal}={}) {
+    const home=getHome(char);
+    const room=home?.house?.rooms.find(r=>r.id===roomId);
+    if(!room) throw new Error('找不到这个房间');
+    const items=home.house.furniture.filter(f=>f.room===roomId && !f.art?.path);
+    if(!items.length) throw new Error('这间房的家具都画过了');
+    const theme=homeTheme(home);
+    const list=items.map(f=>`- id: ${f.id}; name: ${f.name || CATALOG[f.type]?.label || f.type}; type: ${f.type}; color: ${f.color || home.house.palette.accent}`).join('\n');
+    const text=await generate({
+        system:'Write a concise English image description (one short sentence of comma-separated visual details) for each furniture item. Describe only the object itself: shape, material, color in plain words (no hex codes). No people, no room, no words. Output one JSON object mapping each id to its description, nothing else.',
+        user:`# Home\n${home.house.name}\n# Room\n${room.name}${room.note?` (${room.note})`:''}\n\n# Furniture\n${list}`,
+        signal,maxTokens:Math.min(2400,200+items.length*120),
+    }).catch(error=>{ if(signal?.aborted) throw error; throw new Error(`整理家具描述时文字接口出错，还没开始画：${error?.message || error}`); });
+    if(signal?.aborted) throw new DOMException('已取消','AbortError');
+    const parsed=parseJsonLoose(text);
+    const map=parsed && typeof parsed==='object' && !Array.isArray(parsed) ? parsed : {};
+    const cutout=getSettings().imageCutout;
+    return {
+        owner:characterKey(char),house:home.house,theme,roomId,roomName:room.name,
+        items:items.map(f=>{
+            const got=map[f.id];
+            const description=(typeof got==='string' ? got : got?.description || '').replace(/```/g,'').trim() || `a ${f.type.replace(/([a-z])([A-Z])/g,'$1 $2')}`;
+            return {kind:'furniture',id:f.id,name:f.name || CATALOG[f.type]?.label || f.type,theme,prompt:artPrompt(theme,'furniture',description,cutout),negative:ART_NEGATIVE,shape:artShape(f.type),owner:characterKey(char),house:home.house};
+        }),
+    };
+}
+
 export async function generateArt(draft,{signal}={}) {
     draft = {...draft};
-    let result=await requestImage(draft.prompt,{negative:draft.negative,portrait:draft.kind==='portrait',signal});
-    // 旧的洋红色背景去除仅用于家具；人物图不进行颜色键抠除，保留生图服务原始透明通道。
-    if(draft.kind==='furniture' && getSettings().imageCutout) result={...result,...await keyBackground(result.dataUrl)};
+    const shape=draft.shape || (draft.kind==='portrait'?'portrait':'landscape');
+    let result=await requestImage(draft.prompt,{negative:draft.negative,shape,signal});
+    // 人物和家具：四周是一整块纯色底时自动去掉并裁掉空白；拿不准就保留原图。原图另存一份，预览里可以换回去
+    if(draft.kind!=='room') {
+        const cut=await cleanBackground(result.dataUrl,{keyed:draft.kind==='furniture' && getSettings().imageCutout, hard:draft.theme==='pixel'});
+        result={...result,rawDataUrl:result.dataUrl,cutDataUrl:cut.cutout?cut.dataUrl:'',dataUrl:cut.dataUrl,cutoutNote:cut.cutoutNote,useRaw:false};
+    }
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     return {...draft,...result, generatedPrompt:draft.prompt, generatedNegative:draft.negative};
 }
-// 只清除与图像边缘相连的纯洋红底，保留图内衣服、头发等颜色。
-export async function keyBackground(dataUrl) {
-    const image=await new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=dataUrl;});
-    const canvas=document.createElement('canvas');canvas.width=image.naturalWidth;canvas.height=image.naturalHeight;
-    const c=canvas.getContext('2d');c.drawImage(image,0,0);const pixels=c.getImageData(0,0,canvas.width,canvas.height), d=pixels.data,w=canvas.width,h=canvas.height;
-    const visited=new Uint8Array(w*h), q=new Uint32Array(w*h);let head=0,tail=0,removed=0;
-    const matches=n=>d[n*4]>210 && d[n*4+1]<65 && d[n*4+2]>210 && d[n*4+3]>0;
-    const add=n=>{if(n<0||n>=w*h||visited[n]||!matches(n))return;visited[n]=1;q[tail++]=n;};
-    for(let x=0;x<w;x++){add(x);add((h-1)*w+x);}for(let y=0;y<h;y++){add(y*w);add(y*w+w-1);}
-    while(head<tail){const n=q[head++];d[n*4+3]=0;removed++;if(n%w)add(n-1);if(n%w<w-1)add(n+1);add(n-w);add(n+w);}
-    if(removed){c.putImageData(pixels,0,0);return {dataUrl:canvas.toDataURL('image/png'),cutoutNote:'已去除与边缘相连的纯色背景，请核对发丝和轮廓。'};}
-    if(d.some((value,index)=>index%4===3 && value<255)) return {dataUrl,cutoutNote:'图片已有透明区域，请核对人物或家具轮廓。'};
-    return {dataUrl,cutoutNote:'未检测到可去除的纯色背景；请检查预览，背景不合适时可修改提示词重画。'};
+// 预览里在「去背景的」和「原图」之间切换
+export function toggleRawArt(draft) {
+    if(!draft?.cutDataUrl || !draft.rawDataUrl) return draft;
+    const useRaw=!draft.useRaw;
+    return {...draft,useRaw,dataUrl:useRaw?draft.rawDataUrl:draft.cutDataUrl};
 }
 export async function acceptArt(char,draft,{signal}={}) {
     const home=getHome(char),target=artTarget(home,draft.kind,draft.id);

@@ -1,6 +1,6 @@
 // 梦想家 · 家具图库与房间绘制
 // 房间是正面剖面图：viewBox 360×300，墙 0–210，地板 210–300。
-import { esc, shade, hexOr, luminance } from './util.js?mxj=0.6.11';
+import { esc, shade, hexOr, luminance } from './util.js?mxj=0.6.12';
 
 export const SCENE_W = 360;
 export const SCENE_H = 300;
@@ -368,6 +368,16 @@ function artBox(type, drawn) {
     if (layer === 'rug') return { top: FRONT_BASE - 32, height: 48, align: 'xMidYMid' };
     const base = layer === 'back' ? BACK_BASE : FRONT_BASE;
     return { top: drawn.top, height: Math.max(24, base - drawn.top), align: 'xMidYMax' };
+}
+
+// 画家具时用什么形状的画布：按它在房间里占的框来定，竖长的用竖图，扁的用横图，差不多的用方图
+export function artShape(type) {
+    if (!CATALOG[type]) return 'landscape';
+    let drawn = { top: 120 };
+    try { drawn = DRAW[type](180, '#888888', { wall: '#EEEEEE', floor: '#CCCCCC', accent: '#AA6655', trim: '#FFFFFF', lamp: '#FFE7A8' }, { night: false }); } catch { /* 用默认框 */ }
+    const box = artBox(type, drawn);
+    const ratio = box.height / CATALOG[type].w;
+    return ratio > 1.25 ? 'portrait' : ratio < 0.8 ? 'landscape' : 'square';
 }
 
 export const SCALES = [0.8, 1, 1.25];

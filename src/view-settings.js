@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.6.11';
-import { imageRequest, fetchImageModels, imageConfigProblems } from './imageApi.js?mxj=0.6.11';
-import { esc } from './util.js?mxj=0.6.11';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.11';
-import { characterView } from './character.js?mxj=0.6.11';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.11';
-import { ICON } from './ui-common.js?mxj=0.6.11';
+import { refreshFloating } from './floating.js?mxj=0.6.12';
+import { imageRequest, fetchImageModels, imageConfigProblems, needsStructured, RECOMMENDED_IMAGE_MODELS } from './imageApi.js?mxj=0.6.12';
+import { esc } from './util.js?mxj=0.6.12';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.12';
+import { characterView } from './character.js?mxj=0.6.12';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.12';
+import { ICON } from './ui-common.js?mxj=0.6.12';
 
 let app = null;
 let state = null;
@@ -105,8 +105,11 @@ export function setup(a) {
             'image-fetch-models'() {
                 const cfg = getSettings();
                 void run('正在拉取生图模型…', async () => {
-                    state.imageModels = await fetchImageModels(cfg.imageBaseUrl, cfg.imageKey);
-                    flash(`拿到 ${state.imageModels.length} 个生图模型，在下拉框里选一个`);
+                    const got = await fetchImageModels(cfg.imageBaseUrl, cfg.imageKey);
+                    state.imageModels = got.models;
+                    flash(got.recommended
+                        ? (got.failed ? `这个地址没有模型列表（${got.failed}），下拉框里是常用的模型 ID，选一个就行` : '下拉框里是常用的模型 ID，选一个就行；不确定就选第一个')
+                        : `拿到 ${got.models.length} 个生图模型，在下拉框里选一个`);
                 });
             },
             'image-check'() {
@@ -136,7 +139,11 @@ export function setup(a) {
             // 下拉框选了生图模型：存下来，把「模型 ID」框和摘要一起改掉
             imageModelSelect(value) {
                 if (!value) return;
-                updateSettings({ imageModel: value });
+                // 从常用列表里选的，顺手把描述格式也配好：4 代以后用结构化，3 代用基础
+                const patch = { imageModel: value };
+                if (needsStructured(value)) patch.imagePromptFormat = 'structured';
+                else if (/diffusion-(?:furry-)?3\b/i.test(value)) patch.imagePromptFormat = 'legacy';
+                updateSettings(patch);
                 state.keepScroll = true;
                 render();
             },
@@ -365,8 +372,8 @@ function imageSettingsFields() {
     const number = (key,label,step=1) => `<label class="mxj-field"><span>${label}</span><input class="mxj-input" type="number" step="${step}" data-field="${key}" value="${esc(cfg[key])}" inputmode="decimal"></label>`;
     return `<p class="mxj-muted">图片接口与文字接口分别配置。每位使用者填写自己的兼容服务；此模块不连接任何其他扩展。</p>
       ${text('imageBaseUrl','API 地址')}${text('imageKey','API Key','password')}
-      <button type="button" class="mxj-btn" data-act="image-fetch-models" ${state.busy?'disabled':''}>${state.imageModels.length ? '重新拉取生图模型' : '拉取生图模型'}</button>
-      ${state.imageModels.length ? `<label class="mxj-field"><span>选择生图模型（共 ${state.imageModels.length} 个）</span><select class="mxj-input" data-field="imageModelSelect"><option value="">请选择</option>${state.imageModels.map(m=>`<option value="${esc(m)}" ${m===cfg.imageModel?'selected':''}>${esc(m)}</option>`).join('')}</select></label>` : ''}
+      <button type="button" class="mxj-btn" data-act="image-fetch-models" ${state.busy?'disabled':''}>${state.imageModels.length ? '重新拉取生图模型' : '拉取生图模型 / 看常用模型'}</button>
+      ${state.imageModels.length ? `<label class="mxj-field"><span>选择生图模型（共 ${state.imageModels.length} 个）</span><select class="mxj-input" data-field="imageModelSelect"><option value="">请选择</option>${state.imageModels.map(m=>{const note=RECOMMENDED_IMAGE_MODELS.find(x=>x.id===m)?.note;return `<option value="${esc(m)}" ${m===cfg.imageModel?'selected':''}>${esc(m)}${note?`（${esc(note)}）`:''}</option>`;}).join('')}</select></label>` : ''}
       ${text('imageModel','模型 ID')}
       <label class="mxj-field"><span>描述格式（按服务要求选择）</span><select class="mxj-input" data-field="imagePromptFormat"><option value="structured" ${cfg.imagePromptFormat==='structured'?'selected':''}>结构化描述</option><option value="legacy" ${cfg.imagePromptFormat==='legacy'?'selected':''}>基础描述</option></select></label>
       <button type="button" class="mxj-btn" data-act="image-check" ${state.busy?'disabled':''}>检查填写（不生图）</button>

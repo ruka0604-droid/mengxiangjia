@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.6.11';
-import { getSettings } from './settings.js?mxj=0.6.11';
+import { ctx, clip } from './util.js?mxj=0.6.12';
+import { getSettings } from './settings.js?mxj=0.6.12';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';

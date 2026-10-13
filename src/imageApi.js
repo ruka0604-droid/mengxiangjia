@@ -1,7 +1,7 @@
 // 梦想家独立生图连接。图片直接请求使用者配置的服务，不读取其他扩展。
-import { getSettings } from './settings.js?mxj=0.6.11';
-import { ctx, uid } from './util.js?mxj=0.6.11';
-import { inflateRaw } from './inflate.js?mxj=0.6.11';
+import { getSettings } from './settings.js?mxj=0.6.12';
+import { ctx, uid } from './util.js?mxj=0.6.12';
+import { inflateRaw } from './inflate.js?mxj=0.6.12';
 
 export function imageEndpoint(value) {
     const u = new URL(String(value || '').trim());
@@ -31,10 +31,18 @@ export function imageConfigProblems(s) {
     return out;
 }
 
-export function imageRequest(s, prompt, negative, portrait = false) {
+// 画布大小：人物和竖长家具用「人物宽高」，房间和扁家具用「房间／家具宽高」，方的家具取两者面积开方（按 64 取整，不超过原面积）
+export function imageSize(s, shape) {
+    if (shape === true || shape === 'portrait') return { width: Number(s.imagePortraitWidth), height: Number(s.imagePortraitHeight) };
+    const width = Number(s.imageWidth), height = Number(s.imageHeight);
+    if (shape !== 'square') return { width, height };
+    const side = Math.max(64, Math.floor(Math.sqrt(width * height) / 64) * 64);
+    return { width: side, height: side };
+}
+
+export function imageRequest(s, prompt, negative, shape = false) {
     const seed = Number(s.imageSeed) || crypto.getRandomValues(new Uint32Array(1))[0];
-    const width = Number(portrait ? s.imagePortraitWidth : s.imageWidth);
-    const height = Number(portrait ? s.imagePortraitHeight : s.imageHeight);
+    const { width, height } = imageSize(s, shape);
     let extra = {};
     try { extra = JSON.parse(s.imageExtra || '{}'); } catch { throw new Error('高级参数需要有效的 JSON 对象'); }
     if (!extra || Array.isArray(extra) || typeof extra !== 'object') throw new Error('高级参数需要 JSON 对象');
@@ -101,9 +109,27 @@ async function errorReason(response) {
     return String(msg||'').replace(/Bearer\s+\S+/gi,'Bearer [已隐藏]').replace(/\b(?:sk|pst)-[A-Za-z0-9_\-]{6,}/g,'[已隐藏]').replace(/\s+/g,' ').trim().slice(0,200);
 }
 
+// 常用的生图模型 ID（作者 2026-10 要求列出，大家不知道完整 ID 怎么填）。官方生图服务没有模型列表接口，
+// 地址是官方服务、或别的地址拉不到列表时，就给这份。新模型出来时在这里加。
+export const RECOMMENDED_IMAGE_MODELS = [
+    { id: 'nai-diffusion-4-5-full', note: '推荐 · 完整版，用的人最多' },
+    { id: 'nai-diffusion-4-5-curated', note: '精选版，画面更稳' },
+    { id: 'nai-diffusion-5-full', note: '最新 · 完整版' },
+    { id: 'nai-diffusion-5-curated', note: '最新 · 精选版' },
+    { id: 'nai-diffusion-4-full', note: '上一代 · 完整版' },
+    { id: 'nai-diffusion-4-curated-preview', note: '上一代 · 精选版' },
+    { id: 'nai-diffusion-3', note: '旧版，描述格式要选「基础描述」' },
+    { id: 'nai-diffusion-furry-3', note: '旧版兽人画风，描述格式要选「基础描述」' },
+];
+function isOfficialImageHost(baseUrl) {
+    try { return /(^|\.)novelai\.net$/i.test(new URL(String(baseUrl || '').trim()).host); } catch { return false; }
+}
+
 // 拉取生图模型列表：根地址、/v1 地址、完整生图地址都可以；不改动已保存的地址。
 // 很多生图服务不提供模型列表或不允许浏览器直接访问，这时手动填模型 ID。
 export async function fetchImageModels(baseUrl, apiKey) {
+    // 官方服务不提供模型列表，直接给常用模型
+    if (isOfficialImageHost(baseUrl)) return { models: RECOMMENDED_IMAGE_MODELS.map(m => m.id), recommended: true };
     let url;
     try { url = new URL(String(baseUrl || '').trim()); }
     catch { throw new Error('请先填写有效的生图 API 地址'); }
@@ -129,22 +155,23 @@ export async function fetchImageModels(baseUrl, apiKey) {
             try { payload = JSON.parse(raw); } catch { failures.push('返回内容不是有效 JSON'); continue; }
             const entries = Array.isArray(payload?.data) ? payload.data : Array.isArray(payload?.models) ? payload.models : Array.isArray(payload) ? payload : [];
             const models = [...new Set(entries.map(m => typeof m === 'string' ? m : (m?.id || m?.name || '')).filter(Boolean))];
-            if (models.length) return models;
+            if (models.length) return { models, recommended: false };
             failures.push('返回了 JSON，但没有可识别的模型列表');
         } catch (error) {
             failures.push(error instanceof TypeError ? '浏览器网络或跨域访问失败' : String(error?.message || '请求失败'));
         }
     }
-    throw new Error(`没能拉到生图模型（试了 ${candidates.length} 个常见地址）：${[...new Set(failures)].join('；')}。这个服务可能不提供模型列表，直接手动填模型 ID 就行。`);
+    // 拉不到就给常用模型，并说明原因
+    return { models: RECOMMENDED_IMAGE_MODELS.map(m => m.id), recommended: true, failed: [...new Set(failures)].join('；') };
 }
 
 export function blobDataUrl(blob) {
     return new Promise((resolve,reject)=>{const f=new FileReader();f.onload=()=>resolve(f.result);f.onerror=()=>reject(new Error('读取图片失败'));f.readAsDataURL(blob);});
 }
-export async function requestImage(prompt,{negative='',portrait=false,signal}={}) {
+export async function requestImage(prompt,{negative='',portrait=false,shape,signal}={}) {
     const s={...getSettings()};
     if(!s.imageBaseUrl || !s.imageKey || !s.imageModel) throw new Error('请先填写生图地址、密钥和模型 ID');
-    const body=imageRequest(s,prompt,negative,portrait);
+    const body=imageRequest(s,prompt,negative,shape || portrait);
     let response;
     try { response=await fetch(imageEndpoint(s.imageBaseUrl),{method:'POST',credentials:'omit',headers:{'Content-Type':'application/json',Authorization:`Bearer ${cleanImageKey(s.imageKey)}`},body:JSON.stringify(body),signal}); }
     catch(e){if(signal?.aborted) throw e; throw new Error('连不上生图服务，请求没发出去。常见原因：网络或代理不通（手机上可以开关一下代理再试）；API 地址填错了（填服务的网址就行，插件会自动补上生图路径）；这个地址不允许从浏览器直接访问。');}

@@ -380,11 +380,16 @@
     display: flex; flex-direction: column; gap: 10px;
 }
 #mxj-root .mxj-tabs { display: flex; gap: 4px; overflow-x: auto; flex: none; padding-bottom: 2px; }
+#mxj-root .mxj-ask { display: flex; flex-direction: column; gap: 8px; }
+#mxj-root .mxj-ask + .mxj-ask { margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--mxj-line-soft); }
+#mxj-root .mxj-ask h4 { margin: 0; font-size: 14px; font-weight: 650; }
+#mxj-root .mxj-said { margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--mxj-paper); line-height: 1.6; }
 #mxj-root .mxj-tab {
     flex: none; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px;
     background: transparent; color: var(--mxj-muted); font-size: 13px; cursor: pointer;
 }
 #mxj-root .mxj-tab.is-on { background: var(--mxj-ground); color: var(--mxj-ink); font-weight: 700; }
+@media (max-width: 480px) { #mxj-root .mxj-drawer-card .mxj-tab { flex: 1 0 auto; padding: 0 7px; } }
 #mxj-root .mxj-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 #mxj-root .mxj-tile {
     position: relative; min-height: 104px; padding: 8px 4px; cursor: pointer;
@@ -552,6 +557,13 @@
 #mxj-root .mxj-art-item { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--mxj-line-soft); }
 #mxj-root .mxj-art-item img { width:58px; height:58px; object-fit:contain; }
 #mxj-root .mxj-art-item span { flex:1; min-width:0; }
+#mxj-root .mxj-batch-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:10px; }
+#mxj-root .mxj-batch-item { display:flex; flex-direction:column; gap:6px; padding:8px; border:1px solid var(--mxj-line-soft); border-radius:10px; min-width:0; }
+#mxj-root .mxj-batch-item.is-skipped { opacity:.5; }
+#mxj-root .mxj-batch-item .mxj-art-preview { max-height:140px; width:100%; }
+#mxj-root .mxj-batch-item .mxj-row { flex-wrap:wrap; gap:6px; }
+#mxj-root .mxj-batch-item .mxj-btn { flex:1 1 auto; padding-left:8px; padding-right:8px; }
+#mxj-root .mxj-art-wait { height:100px; display:grid; place-items:center; border:1px dashed var(--mxj-line-soft); border-radius:8px; font-size:13px; opacity:.7; }
 #mxj-root .mxj-art-draft { border:2px solid var(--mxj-green); }
 #mxj-root .mxj-input { max-width:100%; box-sizing:border-box; }
 #mxj-root .mxj-card summary { min-height:44px; cursor:pointer; display:flex; align-items:center; }

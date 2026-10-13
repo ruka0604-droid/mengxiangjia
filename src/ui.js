@@ -1,20 +1,20 @@
 // 梦想家 · 界面核心：面板的打开关闭、确认框、渲染、忙碌条、事件分发
 // 每一页的内容和按钮在 view-*.js 里；这里只负责把它们接起来。
-import { refreshFloating } from './floating.js?mxj=0.6.11';
-import { homeTheme } from './theme.js?mxj=0.6.11';
-import { esc, LOG_PREFIX } from './util.js?mxj=0.6.11';
-import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.11';
-import { characterView } from './character.js?mxj=0.6.11';
-import { shouldAutoVisit } from './home-visit.js?mxj=0.6.11';
-import { createDecorator } from './decorate.js?mxj=0.6.11';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.11';
-import { setup as setupHome } from './view-home.js?mxj=0.6.11';
-import { setup as setupBuild } from './view-build.js?mxj=0.6.11';
-import { setup as setupNotes } from './view-notes.js?mxj=0.6.11';
-import { setup as setupDiary } from './view-diary.js?mxj=0.6.11';
-import { setup as setupLook } from './view-look.js?mxj=0.6.11';
-import { setup as setupArt } from './view-art.js?mxj=0.6.11';
-import { setup as setupSettings } from './view-settings.js?mxj=0.6.11';
+import { refreshFloating } from './floating.js?mxj=0.6.12';
+import { homeTheme } from './theme.js?mxj=0.6.12';
+import { esc, LOG_PREFIX } from './util.js?mxj=0.6.12';
+import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.12';
+import { characterView } from './character.js?mxj=0.6.12';
+import { shouldAutoVisit } from './home-visit.js?mxj=0.6.12';
+import { createDecorator } from './decorate.js?mxj=0.6.12';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.12';
+import { setup as setupHome } from './view-home.js?mxj=0.6.12';
+import { setup as setupBuild } from './view-build.js?mxj=0.6.12';
+import { setup as setupNotes } from './view-notes.js?mxj=0.6.12';
+import { setup as setupDiary } from './view-diary.js?mxj=0.6.12';
+import { setup as setupLook } from './view-look.js?mxj=0.6.12';
+import { setup as setupArt } from './view-art.js?mxj=0.6.12';
+import { setup as setupSettings } from './view-settings.js?mxj=0.6.12';
 
 const ROOT_ID = 'mxj-root';
 
@@ -39,6 +39,7 @@ const state = {
     diaryDraft: { weather: '晴', text: '', quote: null, picking: false },
     diaryAll: false,
     artDraft: null,
+    artBatch: null,
 };
 
 let root = null;
@@ -194,6 +195,7 @@ export function open() {
     state.error = '';
     // 画好还没保存的预览图留着（已经花了生图额度），换了角色才清掉
     if (state.artDraft && state.artDraft.owner !== characterKey(char)) state.artDraft = null;
+    if (state.artBatch && state.artBatch.owner !== characterKey(char)) state.artBatch = null;
     state.selectedFurniture = '';
     state.view = !char ? 'nochar' : (home?.house ? 'home' : 'build');
     state.draft = { theme: homeTheme(home), size: 'flat', extra: '', emptyWall: true, proposal: null };
@@ -435,6 +437,7 @@ export function onChatChanged() {
     dismissConfirm();
     state.abort?.abort();
     state.artDraft = null;
+    state.artBatch = null;
     state.draft = { theme: 'pixel', size: 'flat', extra: '', emptyWall: true, proposal: null };
     state.newLayout = '';
     const char = currentCharacter();
