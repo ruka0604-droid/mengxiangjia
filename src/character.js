@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.5.13';
-import { getSettings } from './settings.js?mxj=0.5.13';
+import { ctx, clip } from './util.js?mxj=0.5.16';
+import { getSettings } from './settings.js?mxj=0.5.16';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -140,31 +140,57 @@ function relevantLines(text, {chat=false, charName=''}={}) {
     }
     return selected;
 }
-export function extractPortraitAppearance(worldBook, chatText='', charName='') {
-    const bookLines=relevantLines(worldBook);
-    const chatLines=relevantLines(chatText,{chat:true,charName});
+// 人物外貌：角色描述优先；世界书仅采用能确认属于当前 char 的条目；正文最后补缺。
+// 不把其他 NPC 的独立人设混进 char，也不让后级来源覆盖前级字段。
+function charWorldbookLines(worldBook, charName) {
+    const sections = String(worldBook || '').split(/(?=【[^】]+】)/);
+    const result = [];
+    const name = String(charName || '').trim();
+    for (const section of sections) {
+        const header = (section.match(/^【([^】]+)】/) || [,''])[1].trim();
+        const body = section.replace(/^【[^】]+】/, '').trim();
+        if (!body) continue;
+        // 明确写着其他人的角色档案，不允许取用；无归属的通用条目也不猜测。
+        const identityHeading = /(?:人物|角色|NPC|档案|设定|人设|外貌|外观|形象|资料|简介|character|appearance|profile)/i.test(header);
+        const named = name && (header.includes(name) || new RegExp(`(?:姓名|名字|角色名|name)\\s*[:：]\\s*${name.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}`).test(body));
+        if (!named) {
+            // 通用「外貌」条目可用，但含其他人名标题或显式 NPC 档案一律排除。
+            if (!/^(?:外貌|外观|容貌|人物外貌|形象设定|appearance|physical appearance)$/i.test(header)) continue;
+            if (/(?:NPC|配角|其他角色|他人|路人)/i.test(body.slice(0,160))) continue;
+        }
+        for (const line of relevantLines(body)) result.push(line);
+    }
+    return result;
+}
+export function extractPortraitAppearance(description, worldBook='', chatText='', charName='') {
+    const descLines = relevantLines(description);
+    const bookLines = charWorldbookLines(worldBook, charName);
+    const chatLines = relevantLines(chatText,{chat:true,charName});
     const details={}; const origins={};
     for (const [field,pattern] of LOOK_FIELDS) {
-        const book=bookLines.filter(line=>pattern.test(line));
-        if (book.length) { details[field]=book.slice(0,3).join('；'); origins[field]='世界书'; continue; }
-        const chat=chatLines.filter(line=>pattern.test(line));
-        if (chat.length) { details[field]=chat.slice(-2).join('；'); origins[field]='正文补缺'; }
+        const source = [
+            ['角色描述',descLines],
+            ['世界书补缺',bookLines],
+            ['正文补缺',chatLines],
+        ].find(([,lines])=>lines.some(line=>pattern.test(line)));
+        if (!source) continue;
+        const [origin,lines]=source;
+        details[field]=lines.filter(line=>pattern.test(line)).slice(0,3).join('；');
+        origins[field]=origin;
     }
     const missing=LOOK_FIELDS.filter(([field])=>!details[field]).map(([field])=>LOOK_LABELS[field]);
     const lines=LOOK_FIELDS.filter(([field])=>details[field]).map(([field])=>`${LOOK_LABELS[field]}（${origins[field]}）：${details[field]}`);
-    return {text:lines.join('\n'),details,origins,missing,worldBookMatched:bookLines.length,chatMatched:chatLines.length};
+    return {text:lines.join('\n'),details,origins,missing,descriptionMatched:descLines.length,worldBookMatched:bookLines.length,chatMatched:chatLines.length};
 }
 export async function gatherPortraitAppearance(char) {
-    if (!getSettings().readCharacterWorldBook) throw new Error('人物生图必须读取世界书，请先在设置中启用角色世界书。');
-    const worldBook=await characterWorldBookText(char, 60000, {strict:true});
-    if (!worldBook.trim()) throw new Error('角色内嵌世界书和绑定世界书没有可读取的内容。请检查世界书绑定及条目是否启用。');
-    const c=ctx();
-    const name=characterView(char).name;
+    const description=characterView(char).description;
+    // 世界书仍主动读取；没有绑定世界书或没有外貌条目，不再阻止角色描述优先的生图。
+    const worldBook=await characterWorldBookText(char, 60000, {strict:false});
+    const c=ctx(); const name=characterView(char).name;
     const chat=Array.isArray(c.chat)?c.chat:[];
     const recent=chat.slice(-80).filter(m=>m && !m.is_system).map(m=>`${m.name || (m.is_user?'用户':name)}：${String(m.mes||'').replace(/<[^>]*>/g,' ').slice(0,1200)}`).join('\n');
-    const extracted=extractPortraitAppearance(worldBook,recent,name);
-    if (!extracted.worldBookMatched) throw new Error('世界书已读取，但未找到明确的外貌条目。请在世界书中补充外貌设定后重试。');
-    if (!extracted.text) throw new Error('世界书和正文中没有可用的人物外貌描述。');
+    const extracted=extractPortraitAppearance(description,worldBook,recent,name);
+    if (!extracted.text) throw new Error('角色描述、属于当前角色的世界书条目和正文中都没有可用外貌信息；请先补充角色外貌。');
     return extracted;
 }
 

@@ -1,11 +1,20 @@
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.13';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.5.16';
 // 梦想家 · 家的数据与生成
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.13';
-import { generate } from './api.js?mxj=0.5.13';
-import { gatherContext, contextBlock, validatedAppearance } from './character.js?mxj=0.5.13';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.13';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.13';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.13';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.5.16';
+import { generate } from './api.js?mxj=0.5.16';
+import { gatherContext, contextBlock, validatedAppearance } from './character.js?mxj=0.5.16';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.5.16';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.5.16';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.5.16';
+
+// 角色互动安全边界：模型的拒绝/故障文本与不符合格式的内容不得写入存档。
+function roleJson(raw, required, label) {
+    const value = parseJsonLoose(raw);
+    if (!value || typeof value !== 'object' || Array.isArray(value) || !required.some(k => typeof value[k] === 'string' && value[k].trim())) {
+        throw new Error(`${label}没有返回有效的角色内容，原有纸条和日记未改变，请重试。`);
+    }
+    return value;
+}
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];
@@ -332,12 +341,29 @@ ${diaryDue ? `\n# 交换日记\n书桌上的交换日记轮到他写了。他看
 如果存在待回应装修变化，必须用 note 写一张反映这些变化的小纸条；若本次有新识别的正文事件，也可以结合写在纸条里。若没有新变化则可不写。不要把冲突自动写成和好。把 note 写成 { "kind": "${NOTE_KINDS.join('/')} 之一", "place": "${NOTE_PLACES.join('/')} 之一", "text": "纸条内容" }；不想留就是 null。${diaryDue ? `
 另外加一个字段 "diary": ${DIARY_FORMAT}` : ''}`;
     const raw = await generate({ system: VISIT_SYSTEM, user, signal });
-    const parsed = parseJsonLoose(raw);
+    const parsed = roleJson(raw, ['event'], '回家互动');
     const visit = applyVisit(char, parsed, raw, unread, {fingerprint:freshStory?fingerprint:'', eventKeys:newEvents.map(e=>storyFingerprint([e])), hasChanges:changes.length>0});
+    let diarySaved = false;
     if (diaryDue && parsed?.diary) {
         const h = getHome(char);
-        if (applyCharDiary(h, parsed.diary, '')) setHome(char, h);
+        if (applyCharDiary(h, parsed.diary, '')) { setHome(char, h); diarySaved = true; }
     }
+    // 回家 JSON 可能漏掉纸条/日记；独立补发，避免让合并请求决定能否回复。
+    // 每项失败都保留待处理状态；不写入伪造的角色文字。
+    const failures = [];
+    for (const n of unread) {
+        const current = getHome(char)?.notes?.find(x => x.id === n.id);
+        if (current && !current.replyId) {
+            try { await replyToNote(char, n.id, {signal}); }
+            catch (error) { if (signal?.aborted) throw error; failures.push(`纸条：${error.message}`); }
+        }
+    }
+    // 以真实保存结果判断是否补写，而非仅看模型 JSON 是否包含 diary 字段。
+    if (diaryDue && !diarySaved) {
+        try { await writeCharDiary(char, {signal}); }
+        catch (error) { if (signal?.aborted) throw error; failures.push(`日记：${error.message}`); }
+    }
+    if (failures.length) console.warn('[梦想家] 回家后仍有待处理的回复，可手动重试：', failures.join('；'));
     return visit;
 }
 
@@ -352,7 +378,7 @@ function applyVisit(char, parsed, raw, unread, meta = {}) {
         activity: asText(p.activity, 16),
         mood: asText(p.mood, 8),
         spot,
-        event: asText(p.event, 600) || (parsed ? '' : clip(String(raw || ''), 600)) || `${char?.name || '他'}回来了。`,
+        event: asText(p.event, 600),
         options: (Array.isArray(p.options) ? p.options : []).map(o => asText(o, 24)).filter(Boolean).slice(0, 3),
         turns: [],
     };
@@ -429,11 +455,10 @@ ${recentLog(home, 3)}
 # 输出格式
 { "reply": "他的反应，1 到 3 句", "activity": "他接下来在做什么（8 字以内，可沿用）", "spot": "家具 id 或空", "options": ["你接下来可以做的事", "另一件"] }`;
     const raw = await generate({ system: RESPOND_SYSTEM, user, signal });
-    const parsed = parseJsonLoose(raw);
-    const p = parsed && typeof parsed === 'object' ? parsed : {};
+    const p = roleJson(raw, ['reply'], '角色回应');
     const fresh = getHome(char);
     const last = fresh.visits[fresh.visits.length - 1];
-    const reply = asText(p.reply, 600) || (parsed ? '' : clip(String(raw || ''), 600)) || '……';
+    const reply = asText(p.reply, 600);
     last.turns ||= [];
     last.turns.push({ user: userAction, reply, at: now() });
     last.options = (Array.isArray(p.options) ? p.options : []).map(o => asText(o, 24)).filter(Boolean).slice(0, 3);
@@ -472,7 +497,8 @@ const NOTE_SYSTEM = `你在扮演角色。用户在你们共同的家里给你�
 export async function replyToNote(char, noteId, { signal } = {}) {
     const home = getHome(char);
     const note = home?.notes?.find(n => n.id === noteId);
-    if (!note) throw new Error('找不到这张纸条');
+    if (!note || note.from !== 'user') throw new Error('只能回复用户留下的纸条');
+    if (note.replyId) throw new Error('这张纸条已经回复过了');
     const info = await gatherContext(char);
     const user = `${contextBlock(info)}
 
@@ -490,8 +516,12 @@ ${notesHistory(home)}
 请写你的回信。`;
     const raw = await generate({ system: NOTE_SYSTEM, user, signal, maxTokens: 1024 });
     const parsed = parseJsonLoose(raw);
-    const text = asText(parsed?.text || parsed?.reply, 400) || clip(String(raw || '').replace(/^["“]|["”]$/g, ''), 400);
-    if(!text)throw new Error('模型没有返回纸条内容，请手动重试');
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed) && (parsed.error || parsed.message) && !parsed.text && !parsed.reply) {
+        throw new Error('纸条接口返回错误对象，未保存回信，请重试');
+    }
+    const candidate = asText(parsed?.text || parsed?.reply, 400) || clip(String(raw || '').replace(/^["“]|["”]$/g, ''), 400);
+    const text = String(candidate || '').trim();
+    if (!text || /^\s*[\[{]/.test(text) && !parsed?.text && !parsed?.reply) throw new Error('模型没有返回有效的纸条正文，原纸条仍待回复');
     const fresh = getHome(char);
     const target = fresh.notes.find(n => n.id === noteId);
     if(target.replyId)throw new Error('这张纸条已经回复过了');
@@ -508,8 +538,8 @@ export async function writeCharNote(char,{signal}={}) {
     const home=getHome(char);if(!home?.house)throw new Error('还没有家');
     const info=await gatherContext(char);
     const user=`${contextBlock(info)}\n# 小屋\n${houseSummary(home)}\n# 最近的纸条\n${notesHistory(home)}\n请主动留一张简短的日常纸条。只输出 JSON：{ "kind":"日常", "place":"门边", "text":"纸条正文" }。`;
-    const raw=await generate({system:VISIT_SYSTEM,user,signal,maxTokens:1000});
-    const p=parseJsonLoose(raw);const body=asText(p?.text,400);
+    const raw=await generate({system:NOTE_SYSTEM,user,signal,maxTokens:1000});
+    const p=roleJson(raw, ['text'], '主动留纸条');const body=asText(p.text,400);
     if(!body)throw new Error('模型未生成有效纸条，请重试');
     const fresh=getHome(char);
     const note={id:uid('n'),from:'char',kind:NOTE_KINDS.includes(p.kind)?p.kind:'日常',place:NOTE_PLACES.includes(p.place)?p.place:'门边',text:body,at:now(),readAt:0};
@@ -759,7 +789,7 @@ export function addUserEntry(char, { weather, text, quote }) {
 
 function applyCharDiary(home, raw, rawText) {
     const r = raw && typeof raw === 'object' ? raw : {};
-    const text = asText(r.text || r.content, 1200) || clip(String(rawText || ''), 1200);
+    const text = asText(r.text || r.content, 1200);
     if (!text) return null;
     const d = getDiary(home);
     const entry = {
@@ -811,11 +841,11 @@ ${nowLine()}，轮到你写了。
 # 输出格式
 ${DIARY_FORMAT}`;
     const raw = await generate({ system: DIARY_SYSTEM, user, signal, maxTokens: 2000 });
-    const parsed = parseJsonLoose(raw);
+    const parsed = roleJson(raw, ['text', 'content'], '交换日记');
     const fresh = getHome(char);
-    const entry = applyCharDiary(fresh, parsed, parsed ? '' : raw);
+    const entry = applyCharDiary(fresh, parsed, '');
+    if (!entry) throw new Error('他这次没写出来，日记未更改，可以再叫他写一次。');
     setHome(char, fresh);
-    if (!entry) throw new Error('他这次没写出来，可以再叫他写一次。');
     return entry;
 }
 

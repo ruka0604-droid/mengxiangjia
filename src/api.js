@@ -1,8 +1,8 @@
 // 梦想家 · 生成通道
 // 跟随当前 API：用酒馆的 generateRaw。
 // 副 API：和兔子镜一样全部经过酒馆后端转发，不从浏览器直连接口，也不会悄悄退回主 API。
-import { ctx, stripThinking } from './util.js?mxj=0.5.13';
-import { getSettings } from './settings.js?mxj=0.5.13';
+import { ctx, stripThinking } from './util.js?mxj=0.5.16';
+import { getSettings } from './settings.js?mxj=0.5.16';
 
 const ST_STATUS = '/api/backends/chat-completions/status';
 const ST_GENERATE = '/api/backends/chat-completions/generate';
@@ -162,6 +162,9 @@ export async function generate(req) {
     } else {
         text = await viaMainApi(messages, req);
     }
+    // 所有文字生成入口统一拦截服务拒绝，防止错误正文进入回家记录、纸条、日记。
+    const refusal = /the prompt could not be submitted|generative ai prohibited use policy|sensitive words that violate|ai\.google\.dev\/gemini-api\/docs\/troubleshooting|^(?:error|exception|api error|request failed|http [45]\d\d)\s*[:：]/i;
+    if (refusal.test(String(text || ''))) throw new GenerationError('文字 API 返回内容审核拒绝或错误，已停止写入剧情记录。请检查中转服务与请求内容。');
     text = stripThinking(text);
     if (!text.trim()) throw new GenerationError('接口有回应，但没有拿到正文，可以再试一次。');
     return text;
@@ -176,7 +179,7 @@ async function viaMainApi(messages, req) {
         const raw = isChat
             ? await fn({ prompt: messages, api: c.mainApi, quietToLoud: false, trimNames: false })
             : await fn({ prompt: messages[1].content, systemPrompt: messages[0].content, api: c.mainApi, quietToLoud: false, trimNames: false });
-        return String(raw ?? '');
+        return typeof raw === 'string' ? raw : extractResponseText(raw);
     } catch (error) {
         if (req.signal?.aborted) throw error;
         const message = redact(error?.message || error);
@@ -243,7 +246,7 @@ async function viaProfile(s, messages, req) {
             overrides,
         );
         const text = typeof result === 'string' ? result : (result?.content ?? extractResponseText(result));
-        return String(text ?? '');
+        return typeof text === 'string' ? text : extractResponseText(text);
     } catch (error) {
         if (req.signal?.aborted) throw error;
         throw new GenerationError(`连接配置生成失败：${redact(error?.message || error)}`);
