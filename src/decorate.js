@@ -1,9 +1,9 @@
 // 梦想家 · 布置模式
-import { esc, uid, clip } from './util.js?mxj=0.6.6';
-import { getHome, setHome } from './settings.js?mxj=0.6.6';
-import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.6.6';
-import { recordChanges, suggestFurniture, furnitureFromText } from './home-decor.js?mxj=0.6.6';
-import { characterView } from './character.js?mxj=0.6.6';
+import { esc, uid, clip } from './util.js?mxj=0.6.7';
+import { getHome, setHome } from './settings.js?mxj=0.6.7';
+import { renderRoom, renderPreview, CATALOG, GROUPS, SCALES, SNAP, SCENE_W, SCENE_H, effectiveRow, sceneMetrics, itemColor } from './furniture.js?mxj=0.6.7';
+import { recordChanges, suggestFurniture, furnitureFromText } from './home-decor.js?mxj=0.6.7';
+import { characterView } from './character.js?mxj=0.6.7';
 
 const ITEM_COLORS = ['#2F5D4E', '#B2584A', '#E2C38A', '#8FA9B8', '#6E4B30', '#F4F1EA', '#2A2A2A', '#D99A4E', '#9C7BB0', '#E8A0A8'];
 const WALL_COLORS = ['#C9D3C0', '#E9E1CF', '#DDE7EA', '#F3E3E0', '#D8D2E6', '#F2E6C8', '#3E5A4C', '#2F3E4E'];

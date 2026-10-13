@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.6.6';
-import { imageEndpoint, imageRequest, fetchImageModels } from './imageApi.js?mxj=0.6.6';
-import { esc } from './util.js?mxj=0.6.6';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.6';
-import { characterView } from './character.js?mxj=0.6.6';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.6';
-import { ICON } from './ui-common.js?mxj=0.6.6';
+import { refreshFloating } from './floating.js?mxj=0.6.7';
+import { imageEndpoint, imageRequest, fetchImageModels } from './imageApi.js?mxj=0.6.7';
+import { esc } from './util.js?mxj=0.6.7';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.6.7';
+import { characterView } from './character.js?mxj=0.6.7';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.6.7';
+import { ICON } from './ui-common.js?mxj=0.6.7';
 
 let app = null;
 let state = null;
@@ -372,7 +372,7 @@ function imageSettingsFields() {
       <p class="mxj-muted">需要服务允许浏览器跨域访问。地址可填写站点根地址、/v1 地址或完整生图端点。更换地址会分别记住密钥。不是所有服务都提供模型列表，拉不到就手动填模型 ID。</p>
       <details><summary>画幅与高级参数</summary><div class="mxj-two">${number('imageWidth','房间／家具宽',64)}${number('imageHeight','房间／家具高',64)}${number('imagePortraitWidth','人物宽',64)}${number('imagePortraitHeight','人物高',64)}${number('imageSteps','步数')}${number('imageScale','提示词相关性',0.1)}${number('imageSeed','种子（0 随机）')}</div>
       ${text('imageSampler','采样器 ID')}${text('imageNoise','噪声计划 ID')}
-      <label class="mxj-check"><span>人物／家具使用纯色底辅助抠图</span><input type="checkbox" data-field="imageCutout" ${cfg.imageCutout?'checked':''}></label>
+      <label class="mxj-check"><span>家具使用纯色底辅助抠图（人物始终请求透明背景）</span><input type="checkbox" data-field="imageCutout" ${cfg.imageCutout?'checked':''}></label>
       <label class="mxj-field"><span>额外参数 JSON（可选）</span><textarea class="mxj-input" rows="4" data-field="imageExtra">${esc(cfg.imageExtra)}</textarea></label><p class="mxj-muted">附加参数放入绘图 parameters 中；画幅、提示词和单张数量由本页设置控制。</p></details>`;
 }
 

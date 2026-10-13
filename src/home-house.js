@@ -1,14 +1,14 @@
 // 梦想家 · 盖房子和他的样子
-import { themeId, homeTheme, themeName } from './theme.js?mxj=0.6.6';
-import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.6';
-import { generate } from './api.js?mxj=0.6.6';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.6';
-import { getHome, setHome } from './settings.js?mxj=0.6.6';
-import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.6.6';
-import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.6.6';
-import { HOUSE_SYSTEM, LOOK_SYSTEM } from './home-prompts.js?mxj=0.6.6';
-import { HOUSE_SIZES, ROOM_MODULES, STRUCTURES, roomTypeOf, houseCapacity, defaultFurnitureFor } from './home-rooms.js?mxj=0.6.6';
-import { cleanAppearanceText } from './appearance-filter.js?mxj=0.6.6';
+import { themeId, homeTheme, themeName } from './theme.js?mxj=0.6.7';
+import { uid, now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.6.7';
+import { generate } from './api.js?mxj=0.6.7';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.7';
+import { getHome, setHome } from './settings.js?mxj=0.6.7';
+import { CATALOG, CATALOG_PROMPT, DEFAULT_PALETTE } from './furniture.js?mxj=0.6.7';
+import { normalizeLook, LOOK_PROMPT } from './sprite.js?mxj=0.6.7';
+import { HOUSE_SYSTEM, LOOK_SYSTEM } from './home-prompts.js?mxj=0.6.7';
+import { HOUSE_SIZES, ROOM_MODULES, STRUCTURES, roomTypeOf, houseCapacity, defaultFurnitureFor } from './home-rooms.js?mxj=0.6.7';
+import { cleanAppearanceText } from './appearance-filter.js?mxj=0.6.7';
 
 // ---------------- 盖房子 ----------------
 

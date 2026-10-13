@@ -1,10 +1,10 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.6.6';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.6';
-import { homeTheme } from './theme.js?mxj=0.6.6';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.6';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.6';
-import { portraitAppearanceFromModel } from './appearance-filter.js?mxj=0.6.6';
+import { generate } from './api.js?mxj=0.6.7';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.7';
+import { homeTheme } from './theme.js?mxj=0.6.7';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.7';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.7';
+import { portraitAppearanceFromModel } from './appearance-filter.js?mxj=0.6.7';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -35,7 +35,8 @@ export function artTarget(home, kind, id) {
 }
 export function artPrompt(theme,kind,description,cutout) {
     if (kind === 'portrait') {
-        const background = cutout ? 'solid flat bright magenta background RGB 255 0 255, no shadows on background, avoid magenta-colored character details' : 'transparent background';
+        // 人物立绘始终要求直接生成透明底，不再经过洋红底抠图模式。
+        const background = 'genuine transparent background with alpha channel, isolated character cutout, no colored backdrop, no background shadow';
         return `${CHIBI_STYLES[theme] || CHIBI_STYLES.pixel}. ${CHIBI_THEME_RULES[theme] || CHIBI_THEME_RULES.pixel}. ${CHIBI_RULES}. Canonical character appearance: ${description}. ${background}.`;
     }
     const composition=kind==='room'
@@ -67,7 +68,8 @@ export async function prepareArt(char,kind,id,{signal}={}) {
 export async function generateArt(draft,{signal}={}) {
     draft = {...draft};
     let result=await requestImage(draft.prompt,{negative:draft.negative,portrait:draft.kind==='portrait',signal});
-    if(draft.kind!=='room' && getSettings().imageCutout) result={...result,...await keyBackground(result.dataUrl)};
+    // 旧的洋红色背景去除仅用于家具；人物图不进行颜色键抠除，保留生图服务原始透明通道。
+    if(draft.kind==='furniture' && getSettings().imageCutout) result={...result,...await keyBackground(result.dataUrl)};
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     return {...draft,...result, generatedPrompt:draft.prompt, generatedNegative:draft.negative};
 }

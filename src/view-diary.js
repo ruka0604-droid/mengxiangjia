@@ -1,8 +1,8 @@
 // 梦想家 · 界面 · 交换日记
-import { esc, ctx, clip } from './util.js?mxj=0.6.6';
-import { characterView } from './character.js?mxj=0.6.6';
-import { WEATHERS, DIARY_MODES, getDiary, charTurn, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary } from './home-diary.js?mxj=0.6.6';
-import { viewNoChar } from './ui-common.js?mxj=0.6.6';
+import { esc, ctx, clip } from './util.js?mxj=0.6.7';
+import { characterView } from './character.js?mxj=0.6.7';
+import { WEATHERS, DIARY_MODES, getDiary, charTurn, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary } from './home-diary.js?mxj=0.6.7';
+import { viewNoChar } from './ui-common.js?mxj=0.6.7';
 
 let app = null;
 let state = null;

@@ -1,16 +1,16 @@
 // 梦想家 · 界面 · 小屋首页（房间、他在做什么、扩建与搬家）和回家记录
-import { moodFace, homeTheme } from './theme.js?mxj=0.6.6';
-import { esc, formatTime, daysSince } from './util.js?mxj=0.6.6';
-import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.6.6';
-import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.6.6';
-import { characterView, avatarUrl } from './character.js?mxj=0.6.6';
-import { spriteInRoom, poseFor } from './sprite.js?mxj=0.6.6';
-import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.6.6';
-import { getLook } from './home-house.js?mxj=0.6.6';
-import { comeHome, respond, isAway } from './home-visit.js?mxj=0.6.6';
-import { unreadFromChar } from './home-notes.js?mxj=0.6.6';
-import { unreadDiary } from './home-diary.js?mxj=0.6.6';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.6';
+import { moodFace, homeTheme } from './theme.js?mxj=0.6.7';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.6.7';
+import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.6.7';
+import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.6.7';
+import { characterView, avatarUrl } from './character.js?mxj=0.6.7';
+import { spriteInRoom, poseFor } from './sprite.js?mxj=0.6.7';
+import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.6.7';
+import { getLook } from './home-house.js?mxj=0.6.7';
+import { comeHome, respond, isAway } from './home-visit.js?mxj=0.6.7';
+import { unreadFromChar } from './home-notes.js?mxj=0.6.7';
+import { unreadDiary } from './home-diary.js?mxj=0.6.7';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.7';
 
 let app = null;
 let state = null;
