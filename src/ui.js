@@ -1,22 +1,22 @@
-import { refreshFloating } from './floating.js?mxj=0.5.11';
-import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.11';
-import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.11';
-import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.11';
+import { refreshFloating } from './floating.js?mxj=0.5.12';
+import { prepareArt, generateArt, acceptArt } from './art.js?mxj=0.5.12';
+import { imageEndpoint, imageRequest } from './imageApi.js?mxj=0.5.12';
+import { THEMES, homeTheme, themeName, moodFace } from './theme.js?mxj=0.5.12';
 // 梦想家 · 界面
-import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.11';
-import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.11';
-import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.11';
-import { characterView, avatarUrl } from './character.js?mxj=0.5.11';
-import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.11';
+import { esc, formatTime, daysSince, LOG_PREFIX, ctx, clip } from './util.js?mxj=0.5.12';
+import { getSettings, updateSettings, currentCharacter, characterKey, getHome, setHome, removeHome } from './settings.js?mxj=0.5.12';
+import { renderRoom, renderFloorPlan, SCENE_W, SCENE_H, CATALOG } from './furniture.js?mxj=0.5.12';
+import { characterView, avatarUrl } from './character.js?mxj=0.5.12';
+import { spriteInRoom, spriteSvg, poseFor, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.5.12';
 import {
     HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse, NOTE_KINDS, NOTE_PLACES,
     designHouse, createHome, comeHome, respond, postNote, replyToNote, writeCharNote,
     markCharNotesRead, unreadFromChar, shouldAutoVisit, isAway,
     getLook, setLook, generateLook,
     WEATHERS, DIARY_MODES, getDiary, charTurn, unreadDiary, markDiaryRead, setDiaryMode, addUserEntry, writeCharDiary, shouldAutoDiary,
-} from './home.js?mxj=0.5.11';
-import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.11';
-import { createDecorator } from './decorate.js?mxj=0.5.11';
+} from './home.js?mxj=0.5.12';
+import { listConnectionProfiles, fetchManualModels, testConnection } from './api.js?mxj=0.5.12';
+import { createDecorator } from './decorate.js?mxj=0.5.12';
 
 const ROOT_ID = 'mxj-root';
 
@@ -609,7 +609,7 @@ function viewSettings(char, home) {
           <button type="button" role="radio" class="mxj-place${!independent ? ' is-on' : ''}" data-act="source" data-id="follow" aria-checked="${!independent}">跟随当前 API</button>
           <button type="button" role="radio" class="mxj-place${independent ? ' is-on' : ''}" data-act="source" data-id="independent" aria-checked="${independent}">使用副 API</button>
         </div>
-        <p class="mxj-muted">${independent ? '现在用的是下面配置的副 API。' : '现在跟着酒馆当前的 API 生成。想单独用一个 API，选「使用副 API」，再填下面的设置。'}</p>
+        <p class="mxj-muted">${independent ? '现在用的是下面配置的副 API。' : '跟随酒馆当前已选择的 API 与模型，无需在梦想家重新拉取模型。想独立选模型，请使用副 API。'}</p>
         <button type="button" class="mxj-btn" data-act="test" ${state.busy ? 'disabled' : ''}>测试连接</button>
       </section>
       <section class="mxj-card${independent ? '' : ' is-dim'}">
@@ -1053,6 +1053,7 @@ function onClick(event) {
         case 'refresh-profiles': state.keepScroll = true; render(); flash('已刷新连接配置'); break;
         case 'fetch-models': {
             const s = getSettings();
+            if (s.independentConnectionProfileId) { flash('使用酒馆连接配置时，模型由该连接配置管理；如需手动拉取，请切换到手动副 API。'); break; }
             void run('正在拉取模型…', async () => {
                 state.models = await fetchManualModels(s.independentApiBaseUrl, s.independentApiKey);
                 flash(`拿到 ${state.models.length} 个模型`);

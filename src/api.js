@@ -1,8 +1,8 @@
 // 梦想家 · 生成通道
 // 跟随当前 API：用酒馆的 generateRaw。
 // 副 API：和兔子镜一样全部经过酒馆后端转发，不从浏览器直连接口，也不会悄悄退回主 API。
-import { ctx, stripThinking } from './util.js?mxj=0.5.11';
-import { getSettings } from './settings.js?mxj=0.5.11';
+import { ctx, stripThinking } from './util.js?mxj=0.5.12';
+import { getSettings } from './settings.js?mxj=0.5.12';
 
 const ST_STATUS = '/api/backends/chat-completions/status';
 const ST_GENERATE = '/api/backends/chat-completions/generate';
@@ -60,6 +60,7 @@ function redact(text) {
 
 function compactError(status, text) {
     const body = String(text || '');
+    if (status === 503) return '接口返回 503 Service Unavailable。酒馆聊天可用时，请检查梦想家的文字生成请求与当前连接是否兼容；可稍后重试，不会自动切换 API。';
     if (status === 429) return '接口说请求太频繁（429），稍等一会儿再试。';
     if (status === 524 || status === 504) return '接口等太久没有回应（超时），可以再试一次。';
     if (/<html|<!doctype/i.test(body)) return `接口返回了一个网页而不是结果（HTTP ${status}），请检查地址。`;
@@ -178,7 +179,8 @@ async function viaMainApi(messages, req) {
         return String(raw ?? '');
     } catch (error) {
         if (req.signal?.aborted) throw error;
-        throw new GenerationError(`主 API 生成失败：${redact(error?.message || error)}`);
+        const message = redact(error?.message || error);
+        throw new GenerationError(`主 API 生成失败（跟随酒馆当前 ${c.mainApi || '未知'} 连接）：${message}${/Service Unavailable|\b503\b/i.test(message) ? '。此错误来自生成请求，不代表模型列表不可用；请在酒馆主聊天验证同一时刻是否正常。' : ''}`);
     }
 }
 
@@ -286,7 +288,11 @@ export async function fetchManualModels(baseUrl, key) {
             body: JSON.stringify({ chat_completion_source: 'custom', custom_url: base, custom_include_headers: customHeaders(key) }),
         });
         if (!response.ok) throw new GenerationError(compactError(response.status, await response.text().catch(() => '')));
-        const data = await response.json();
+        const raw = await response.text();
+        if (/^\s*<(?:!doctype|html)/i.test(raw)) throw new GenerationError('模型列表请求返回 HTML 网页而非 JSON。请检查副 API 地址是否为兼容接口地址，或手动填写模型 ID。');
+        let data;
+        try { data = JSON.parse(raw); } catch { throw new GenerationError('模型列表接口返回非 JSON 数据。可手动填写模型 ID，当前配置未更改。'); }
+        if (data?.error) throw new GenerationError(`模型列表接口错误：${redact(data.error?.message || String(data.error)).slice(0,200)}`);
         const list = Array.isArray(data) ? data : (Array.isArray(data?.data) ? data.data : (Array.isArray(data?.models) ? data.models : []));
         const ids = list.map(m => (typeof m === 'string' ? m : (m?.id || m?.name || ''))).filter(Boolean);
         if (!ids.length) throw new GenerationError('接口没有返回模型列表，可以直接手动填写模型 ID。');
