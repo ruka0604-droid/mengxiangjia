@@ -1,8 +1,8 @@
 // 梦想家 · 生成通道
 // 跟随当前 API：用酒馆的 generateRaw。
 // 副 API：和兔子镜一样全部经过酒馆后端转发，不从浏览器直连接口，也不会悄悄退回主 API。
-import { ctx, stripThinking } from './util.js?mxj=0.6.9';
-import { getSettings } from './settings.js?mxj=0.6.9';
+import { ctx, stripThinking } from './util.js?mxj=0.6.10';
+import { getSettings } from './settings.js?mxj=0.6.10';
 
 const ST_STATUS = '/api/backends/chat-completions/status';
 const ST_GENERATE = '/api/backends/chat-completions/generate';

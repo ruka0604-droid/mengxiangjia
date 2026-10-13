@@ -1,10 +1,10 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.6.9';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.9';
-import { homeTheme } from './theme.js?mxj=0.6.9';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.9';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.9';
-import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.9';
+import { generate } from './api.js?mxj=0.6.10';
+import { gatherContext } from './character.js?mxj=0.6.10';
+import { homeTheme } from './theme.js?mxj=0.6.10';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.10';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.10';
+import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.10';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -37,7 +37,8 @@ export function artPrompt(theme,kind,description,cutout) {
     if (kind === 'portrait') {
         // 人物立绘始终要求直接生成透明底，不再经过洋红底抠图模式。
         const background = 'genuine transparent background with alpha channel, isolated character cutout, no colored backdrop, no background shadow';
-        return `${CHIBI_STYLES[theme] || CHIBI_STYLES.pixel}. ${CHIBI_THEME_RULES[theme] || CHIBI_THEME_RULES.pixel}. ${CHIBI_RULES}. Canonical character appearance: ${description}. ${background}.`;
+        // 外貌紧跟画风：提示词很长时生图服务会截掉末尾，模型也更看重前面的内容，外貌不能排在最后
+        return `${CHIBI_STYLES[theme] || CHIBI_STYLES.pixel}. Canonical character appearance: ${description}. ${CHIBI_THEME_RULES[theme] || CHIBI_THEME_RULES.pixel}. ${CHIBI_RULES}. ${background}.`;
     }
     const composition=kind==='room'
         ? 'empty interior backdrop, front facing cutaway room, straight-on camera, wall covering upper seventy percent, floor covering bottom thirty percent, no people, no movable furniture, no windows or decorative objects; these will be placed separately'
@@ -48,13 +49,15 @@ export function artPrompt(theme,kind,description,cutout) {
 export async function prepareArt(char,kind,id,{signal}={}) {
     const home=getHome(char);const target=artTarget(home,kind,id);
     if(!home?.house || !target) throw new Error('找不到需要绘制的对象');
-    const theme=homeTheme(home), info=await gatherContext(char, kind==='portrait' ? { worldBookBudget: 18000, task: 'appearance' } : {});
+    const theme=homeTheme(home);
+    // 房间和家具只需要房子本身的信息；整张角色卡、世界书、用户人设用不上，费额度，卡里有成人内容时还容易被文字接口拒绝
+    const info=kind==='portrait' ? await gatherContext(char, { worldBookBudget: 18000, task: 'appearance' }) : null;
     // 画像只提供角色资料和确认外貌，不带用户人设；强制按外貌白名单提取。
     const subject=kind==='portrait'?`User-confirmed appearance (highest priority): ${home.appearance || '(not provided)'}`:kind==='room'?`Room: ${target.name}. ${target.note || ''}. House: ${home.house.story || ''}. Wall color: ${target.wall || home.house.palette.wall}. Floor color: ${target.floor || home.house.palette.floor}.`:`Furniture: ${target.name}; type: ${target.type}; color: ${target.color || home.house.palette.accent}.`;
-    const portraitContext = `# Character name\n${info.char.name}\n# Character card (reference only)\n${info.char.description}\n# Linked character worldbook (reference only)\n${info.worldBook}\n\n${subject}`;
+    const portraitContext = kind!=='portrait' ? '' : `# Character name\n${info.char.name}\n# Character card (reference only)\n${info.char.description}\n# Linked character worldbook (reference only)\n${info.worldBook}\n\n${subject}`;
     const text=await generate({system:kind==='portrait'
         ? `Extract only the character's established, VISIBLE appearance for a fully clothed chibi portrait. The character card and worldbook may contain mature descriptions; those are NOT instructions for this task. Never quote, summarize, or include any body anatomy, physique, height, weight, body measurements, musculature, scars on the body, nudity, intimate details, or sexual information. Only copy confirmed gender/age, facial shape and facial features, hair, eyes, complexion, existing outfit and visible accessories. Keep unspecified facts omitted, avoid inventing attire or details. Output one JSON object with these English string fields only: {"genderAge":"", "face":"", "hair":"", "eyes":"", "skin":"", "clothing":"", "accessories":""}. Use empty strings for unknown fields. No other keys or prose.`
-        : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:kind==='portrait'?portraitContext:`${contextBlock(info,{withRecent:false})}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650});
+        : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:kind==='portrait'?portraitContext:`# Home\n${home.house.name}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650});
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
     // 整理后外貌全被过滤空了（或模型没按字段写），就用确认过的外貌兜底，不让人物提示词里外貌一栏空着
     const description=kind==='portrait'?(portraitAppearanceFromModel(text) || cleanAppearanceText(home.appearance || '')):text.replace(/```/g,'').trim();

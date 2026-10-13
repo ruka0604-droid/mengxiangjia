@@ -1,20 +1,20 @@
 // 梦想家 · 界面核心：面板的打开关闭、确认框、渲染、忙碌条、事件分发
 // 每一页的内容和按钮在 view-*.js 里；这里只负责把它们接起来。
-import { refreshFloating } from './floating.js?mxj=0.6.9';
-import { homeTheme } from './theme.js?mxj=0.6.9';
-import { esc, LOG_PREFIX } from './util.js?mxj=0.6.9';
-import { currentCharacter, getHome } from './settings.js?mxj=0.6.9';
-import { characterView } from './character.js?mxj=0.6.9';
-import { shouldAutoVisit } from './home-visit.js?mxj=0.6.9';
-import { createDecorator } from './decorate.js?mxj=0.6.9';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.9';
-import { setup as setupHome } from './view-home.js?mxj=0.6.9';
-import { setup as setupBuild } from './view-build.js?mxj=0.6.9';
-import { setup as setupNotes } from './view-notes.js?mxj=0.6.9';
-import { setup as setupDiary } from './view-diary.js?mxj=0.6.9';
-import { setup as setupLook } from './view-look.js?mxj=0.6.9';
-import { setup as setupArt } from './view-art.js?mxj=0.6.9';
-import { setup as setupSettings } from './view-settings.js?mxj=0.6.9';
+import { refreshFloating } from './floating.js?mxj=0.6.10';
+import { homeTheme } from './theme.js?mxj=0.6.10';
+import { esc, LOG_PREFIX } from './util.js?mxj=0.6.10';
+import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.10';
+import { characterView } from './character.js?mxj=0.6.10';
+import { shouldAutoVisit } from './home-visit.js?mxj=0.6.10';
+import { createDecorator } from './decorate.js?mxj=0.6.10';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.10';
+import { setup as setupHome } from './view-home.js?mxj=0.6.10';
+import { setup as setupBuild } from './view-build.js?mxj=0.6.10';
+import { setup as setupNotes } from './view-notes.js?mxj=0.6.10';
+import { setup as setupDiary } from './view-diary.js?mxj=0.6.10';
+import { setup as setupLook } from './view-look.js?mxj=0.6.10';
+import { setup as setupArt } from './view-art.js?mxj=0.6.10';
+import { setup as setupSettings } from './view-settings.js?mxj=0.6.10';
 
 const ROOT_ID = 'mxj-root';
 
@@ -192,7 +192,8 @@ export function open() {
     const char = currentCharacter();
     const home = char ? getHome(char) : null;
     state.error = '';
-    state.artDraft = null;
+    // 画好还没保存的预览图留着（已经花了生图额度），换了角色才清掉
+    if (state.artDraft && state.artDraft.owner !== characterKey(char)) state.artDraft = null;
     state.selectedFurniture = '';
     state.view = !char ? 'nochar' : (home?.house ? 'home' : 'build');
     state.draft = { theme: homeTheme(home), size: 'flat', extra: '', emptyWall: true, proposal: null };
