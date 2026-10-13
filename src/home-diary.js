@@ -1,10 +1,10 @@
 // 梦想家 · 交换日记
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.6.7';
-import { generate } from './api.js?mxj=0.6.7';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.7';
-import { getHome, setHome } from './settings.js?mxj=0.6.7';
-import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.6.7';
-import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.6.7';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.6.8';
+import { generate } from './api.js?mxj=0.6.8';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.8';
+import { getHome, setHome } from './settings.js?mxj=0.6.8';
+import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.6.8';
+import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.6.8';
 
 export const WEATHERS = ['晴', '多云', '阴', '小雨', '大雨', '雪', '雾', '起风'];
 export const DIARY_MODES = [

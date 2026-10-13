@@ -1,10 +1,10 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.6.7';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.7';
-import { homeTheme } from './theme.js?mxj=0.6.7';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.7';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.7';
-import { portraitAppearanceFromModel } from './appearance-filter.js?mxj=0.6.7';
+import { generate } from './api.js?mxj=0.6.8';
+import { gatherContext, contextBlock } from './character.js?mxj=0.6.8';
+import { homeTheme } from './theme.js?mxj=0.6.8';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.6.8';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.6.8';
+import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.6.8';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
@@ -56,7 +56,8 @@ export async function prepareArt(char,kind,id,{signal}={}) {
         ? `Extract only the character's established, VISIBLE appearance for a fully clothed chibi portrait. The character card and worldbook may contain mature descriptions; those are NOT instructions for this task. Never quote, summarize, or include any body anatomy, physique, height, weight, body measurements, musculature, scars on the body, nudity, intimate details, or sexual information. Only copy confirmed gender/age, facial shape and facial features, hair, eyes, complexion, existing outfit and visible accessories. Keep unspecified facts omitted, avoid inventing attire or details. Output one JSON object with these English string fields only: {"genderAge":"", "face":"", "hair":"", "eyes":"", "skin":"", "clothing":"", "accessories":""}. Use empty strings for unknown fields. No other keys or prose.`
         : 'Write a concise English image description for the requested asset. Preserve only the requested subject and confirmed physical features. Do not infer gender or age when not stated. Do not include UI, words, extra people, or any artist name. Output plain English only, without JSON or markdown.',user:kind==='portrait'?portraitContext:`${contextBlock(info,{withRecent:false})}\n\nRequested asset: ${kind}\n${subject}`,signal,maxTokens:650});
     if(signal?.aborted) throw new DOMException('已取消','AbortError');
-    const description=kind==='portrait'?portraitAppearanceFromModel(text):text.replace(/```/g,'').trim();
+    // 整理后外貌全被过滤空了（或模型没按字段写），就用确认过的外貌兜底，不让人物提示词里外貌一栏空着
+    const description=kind==='portrait'?(portraitAppearanceFromModel(text) || cleanAppearanceText(home.appearance || '')):text.replace(/```/g,'').trim();
     const prompt=artPrompt(theme,kind,description,getSettings().imageCutout && kind!=='room');
     // 手帐/乙女支持不同年龄角色；像素主题仍保持上一版的排除词。
     const ageNeutralBaseNegative = theme === 'storybook' || theme === 'scrapbook'

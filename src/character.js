@@ -1,6 +1,6 @@
 // 梦想家 · 读取角色卡、用户人设、角色世界书和最近聊天
-import { ctx, clip } from './util.js?mxj=0.6.7';
-import { getSettings } from './settings.js?mxj=0.6.7';
+import { ctx, clip } from './util.js?mxj=0.6.8';
+import { getSettings } from './settings.js?mxj=0.6.8';
 
 function first(...values) {
     return values.map(v => String(v ?? '').trim()).find(Boolean) || '';
@@ -106,21 +106,25 @@ export async function characterWorldBookText(char, budget = 5000, { task = 'gene
             console.debug('[梦想家] 读取内嵌世界书失败，跳过', error);
         }
     }
+    // 条目是 {title, text, order}：去重、排序、拼接都按 text 来（不能直接拿对象拼字符串，会变成 [object Object]）
     const seen = new Set();
-    for (let i = rows.length - 1; i >= 0; i--) {
-        if (seen.has(rows[i])) rows.splice(i, 1);
-        else seen.add(rows[i]);
+    const list = rows.filter(row => {
+        if (seen.has(row.text)) return false;
+        seen.add(row.text);
+        return true;
+    });
+    // 只有看外貌的任务（盖房子、定小人外形、画人物）把外貌条目排前面；其他生成保持世界书原来的顺序
+    if (task === 'appearance') {
+        const appearanceRe = /外貌|外观|容貌|长相|形象|五官|脸型|眉毛|发型|发色|瞳色|眼睛|眼眸|肤色|服装|衣着|穿着|配饰|appearance|face|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
+        list.sort((a, b) => (Number(appearanceRe.test(b.text)) - Number(appearanceRe.test(a.text))) || (a.order - b.order));
     }
-    // 外貌相关的条目排前面，世界书很长时不会被前面的长篇背景挤掉
-    const appearanceRe = /外貌|外观|容貌|长相|形象|五官|脸型|眉毛|发型|发色|瞳色|眼睛|眼眸|肤色|服装|衣着|穿着|配饰|appearance|face|looks|hair|eyes|outfit|skin|clothing|gender|性别|年龄/i;
-    rows.sort((a, b) => Number(appearanceRe.test(b)) - Number(appearanceRe.test(a)));
     let out = '';
-    for (const row of rows) {
-        if (out.length + row.length > budget) {
-            out += `${row.slice(0, Math.max(0, budget - out.length))}…`;
+    for (const { text } of list) {
+        if (out.length + text.length > budget) {
+            out += `${text.slice(0, Math.max(0, budget - out.length))}…`;
             break;
         }
-        out += `${row}\n`;
+        out += `${text}\n`;
     }
     return out.trim();
 }

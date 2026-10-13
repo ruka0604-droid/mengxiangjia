@@ -1,10 +1,10 @@
 // 梦想家 · 界面 · 他的样子（外貌描述、像素小人的发型配饰颜色）
-import { homeTheme, themeName, moodFace } from './theme.js?mxj=0.6.7';
-import { esc } from './util.js?mxj=0.6.7';
-import { currentCharacter, getHome, setHome } from './settings.js?mxj=0.6.7';
-import { spriteSvg, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.6.7';
-import { getLook, setLook, generateLook } from './home-house.js?mxj=0.6.7';
-import { viewNoChar } from './ui-common.js?mxj=0.6.7';
+import { homeTheme, themeName, moodFace } from './theme.js?mxj=0.6.8';
+import { esc } from './util.js?mxj=0.6.8';
+import { currentCharacter, getHome, setHome } from './settings.js?mxj=0.6.8';
+import { spriteSvg, HAIR_STYLES, ACCESSORIES, LOOK_COLORS } from './sprite.js?mxj=0.6.8';
+import { getLook, setLook, generateLook } from './home-house.js?mxj=0.6.8';
+import { viewNoChar } from './ui-common.js?mxj=0.6.8';
 
 let app = null;
 let state = null;
