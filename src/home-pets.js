@@ -1,20 +1,20 @@
 // 梦想家 · 小家伙们：领养、种植、照顾，植物长大时他的纸条，回家时一起写的宠物纸条，照描述画一只
-import { uid, now, parseJsonLoose, asText, clip, daysSince, hexOr } from './util.js?mxj=0.8.0';
-import { generate } from './api.js?mxj=0.8.0';
-import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
-import { getHome, setHome } from './settings.js?mxj=0.8.0';
-import { PET_NOTE_SYSTEM, PET_DRAW_SYSTEM } from './home-prompts.js?mxj=0.8.0';
-import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.8.0';
-import { homeTheme } from './theme.js?mxj=0.8.0';
-import { ART_STYLES, ART_NEGATIVE } from './art.js?mxj=0.8.0';
-import { requestImage, saveImage } from './imageApi.js?mxj=0.8.0';
-import { cleanBackground } from './cutout.js?mxj=0.8.0';
-import { roomTypeOf } from './home-rooms.js?mxj=0.8.0';
+import { uid, now, parseJsonLoose, asText, clip, daysSince, hexOr } from './util.js?mxj=0.8.1';
+import { generate } from './api.js?mxj=0.8.1';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.1';
+import { getHome, setHome } from './settings.js?mxj=0.8.1';
+import { PET_NOTE_SYSTEM, PET_DRAW_SYSTEM } from './home-prompts.js?mxj=0.8.1';
+import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.8.1';
+import { homeTheme } from './theme.js?mxj=0.8.1';
+import { ART_STYLES, ART_NEGATIVE } from './art.js?mxj=0.8.1';
+import { requestImage, saveImage } from './imageApi.js?mxj=0.8.1';
+import { cleanBackground } from './cutout.js?mxj=0.8.1';
+import { roomTypeOf } from './home-rooms.js?mxj=0.8.1';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, TIME,
     animalStatus, animalRoom, animalLabel, genderLabel, plantStatus, stageFor, pickMischief,
     GEAR, gearTypeOf, gearSummary,
-} from './pets-data.js?mxj=0.8.0';
+} from './pets-data.js?mxj=0.8.1';
 
 export function getPets(home) {
     if (!home) return { animals: [], plants: [], events: [] };
@@ -243,12 +243,23 @@ export function applyGear(home, list, by = 'char', charName = '他') {
             if (a.gear.length !== before) { pushEvent(pets, a.id, `${by === 'char' ? charName : '你'}给${a.name}摘下了${item || GEAR[type].label}`); done.push(a.name); }
             continue;
         }
+        const color = hexOr(e.color, '') || colorFromText(`${item} ${e.color || ''}`) || GEAR[type].color;
+        // 已经戴着同一件（他回家时看到「戴着平安结」又报一遍）就不重复记，也不改成「他戴的」
+        const same = a.gear.find(g => g.type === type);
+        if (same && (!item || same.item === item || same.item === GEAR[type].label) && (!hexOr(e.color, '') || same.color === color)) continue;
         a.gear = a.gear.filter(g => GEAR[g.type]?.slot !== slot);
-        a.gear.push({ type, color: hexOr(e.color, GEAR[type].color), item: item || GEAR[type].label, by: by === 'user' ? 'user' : 'char', at: now() });
+        a.gear.push({ type, color, item: item || GEAR[type].label, by: by === 'user' ? 'user' : 'char', at: now() });
         pushEvent(pets, a.id, `${by === 'char' ? charName : '你'}给${a.name}戴上了${item || GEAR[type].label}`);
         done.push(a.name);
     }
     return done;
+}
+
+// 模型写「红绳」「粉色的」时，按颜色字认一个色
+const COLOR_WORDS = [[/粉/, '#E8A0A8'], [/红|朱|绯/, '#C2452D'], [/橙|橘/, '#D99A4E'], [/金|黄/, '#F2C46B'], [/绿|翠/, '#2F5D4E'], [/蓝|青/, '#5C8FD0'], [/紫/, '#9C7BB0'], [/棕|褐|咖啡/, '#7A5638'], [/黑/, '#2A2A2A'], [/白|银/, '#F4F1EA']];
+function colorFromText(text) {
+    const s = String(text || '');
+    return COLOR_WORDS.find(([re]) => re.test(s))?.[1] || '';
 }
 
 export function dressAnimal(char, id, type, color) {

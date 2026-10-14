@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.8.0';
-import { imageRequest, fetchImageModels, imageConfigProblems, needsStructured, RECOMMENDED_IMAGE_MODELS } from './imageApi.js?mxj=0.8.0';
-import { esc } from './util.js?mxj=0.8.0';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.8.0';
-import { characterView } from './character.js?mxj=0.8.0';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.8.0';
-import { ICON } from './ui-common.js?mxj=0.8.0';
+import { refreshFloating } from './floating.js?mxj=0.8.1';
+import { imageRequest, fetchImageModels, imageConfigProblems, needsStructured, RECOMMENDED_IMAGE_MODELS } from './imageApi.js?mxj=0.8.1';
+import { esc } from './util.js?mxj=0.8.1';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.8.1';
+import { characterView } from './character.js?mxj=0.8.1';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.8.1';
+import { ICON } from './ui-common.js?mxj=0.8.1';
 
 let app = null;
 let state = null;

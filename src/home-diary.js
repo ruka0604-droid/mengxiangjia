@@ -1,11 +1,11 @@
 // 梦想家 · 交换日记
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.8.0';
-import { generate } from './api.js?mxj=0.8.0';
-import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
-import { getHome, setHome } from './settings.js?mxj=0.8.0';
-import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.8.0';
-import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.8.0';
-import { petsBrief, applyGear, withPetGear, PET_GEAR_RULE } from './home-pets.js?mxj=0.8.0';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.8.1';
+import { generate } from './api.js?mxj=0.8.1';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.1';
+import { getHome, setHome } from './settings.js?mxj=0.8.1';
+import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.8.1';
+import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.8.1';
+import { petsBrief, applyGear, withPetGear, PET_GEAR_RULE } from './home-pets.js?mxj=0.8.1';
 
 export const WEATHERS = ['晴', '多云', '阴', '小雨', '大雨', '雪', '雾', '起风'];
 export const DIARY_MODES = [
@@ -128,7 +128,7 @@ ${brief ? withPetGear(DIARY_FORMAT) : DIARY_FORMAT}`;
     const fresh = getHome(char);
     if (!fresh) throw new Error('这个家已经不在了，这次生成的内容没有保存。');
     const entry = applyCharDiary(fresh, parsed?.diary || parsed, parsed ? '' : raw);
-    if (entry && brief && parsed?.petGear) applyGear(fresh, parsed.petGear, 'char', char?.name || '他');
+    if (entry && brief && (parsed?.petGear || parsed?.diary?.petGear)) applyGear(fresh, parsed.petGear || parsed.diary.petGear, 'char', char?.name || '他');
     setHome(char, fresh);
     if (!entry) throw new Error('他这次没写出来，可以再叫他写一次。');
     return entry;

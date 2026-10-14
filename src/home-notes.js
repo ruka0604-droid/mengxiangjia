@@ -1,10 +1,10 @@
 // 梦想家 · 小纸条
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.8.0';
-import { generate } from './api.js?mxj=0.8.0';
-import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
-import { getHome, setHome } from './settings.js?mxj=0.8.0';
-import { NOTE_SYSTEM, VISIT_SYSTEM } from './home-prompts.js?mxj=0.8.0';
-import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.8.0';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.8.1';
+import { generate } from './api.js?mxj=0.8.1';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.1';
+import { getHome, setHome } from './settings.js?mxj=0.8.1';
+import { NOTE_SYSTEM, VISIT_SYSTEM } from './home-prompts.js?mxj=0.8.1';
+import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.8.1';
 
 export const NOTE_KINDS = ['道歉', '纪念', '日常', '想你', '谢谢', '生气了'];
 export const NOTE_PLACES = ['门边', '冰箱', '枕边', '书桌'];

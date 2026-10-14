@@ -926,8 +926,9 @@
 #mxj-root .mxj-heart { transform-box: fill-box; transform-origin: center; animation: mxj-heart 1.8s ease-out infinite; opacity: 0; }
 @keyframes mxj-heart { 0% { opacity: 0; transform: translateY(4px) scale(.6); } 25% { opacity: 1; } 100% { opacity: 0; transform: translateY(-10px) scale(1); } }
 @media (prefers-reduced-motion: reduce) { #mxj-root .mxj-heart { animation: none; opacity: 1; } }
-#mxj-root .mxj-dress-stage { border-radius: 12px; background: var(--mxj-green-soft); padding: 8px; touch-action: none; }
-#mxj-root .mxj-dress-stage svg { display: block; width: 100%; height: auto; max-height: 280px; touch-action: none; }
+#mxj-root .mxj-dress-stage { border-radius: 12px; background: var(--mxj-green-soft); padding: 8px; }
+#mxj-root .mxj-dress-stage svg { display: block; width: 100%; height: auto; max-height: 280px; }
+#mxj-root .mxj-dress-stage.is-draggable, #mxj-root .mxj-dress-stage.is-draggable svg { touch-action: none; }
 #mxj-root .mxj-handle { cursor: grab; }
 #mxj-root .mxj-worn-list { display: flex; flex-direction: column; gap: 6px; }
 #mxj-root .mxj-worn { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 4px 0 10px; border-radius: 10px; background: var(--mxj-green-soft); }

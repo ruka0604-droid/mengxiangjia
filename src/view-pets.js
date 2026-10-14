@@ -1,21 +1,21 @@
 // 梦想家 · 界面 · 小家伙们（照顾、领养、种一盆、成长记录）和小屋里点中它时的那张卡
-import { esc, formatTime, daysSince } from './util.js?mxj=0.8.0';
-import { characterView } from './character.js?mxj=0.8.0';
-import { getHome, setHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.8.0';
-import { isAway, respond } from './home-visit.js?mxj=0.8.0';
-import { imageConfigProblems } from './imageApi.js?mxj=0.8.0';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.8.1';
+import { characterView } from './character.js?mxj=0.8.1';
+import { getHome, setHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.8.1';
+import { isAway, respond } from './home-visit.js?mxj=0.8.1';
+import { imageConfigProblems } from './imageApi.js?mxj=0.8.1';
 import {
     getPets, findPet, adoptAnimal, plantNew, careAnimal, moveAnimal, removePet,
     waterPlant, fertilizePlant, writeStageNote, drawCustomPet, drawPetImage,
     dressAnimal, undressAnimal, setPetAnchors, detectPetAnchors,
-} from './home-pets.js?mxj=0.8.0';
+} from './home-pets.js?mxj=0.8.1';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, STAGE_POINTS,
     animalStatus, animalRoom, animalPose, animalLabel, genderLabel,
     plantStatus, nextStageHint, todayTasks, dayKey,
     GEAR, GEAR_COLORS, animalAnchors, pettingNow,
-} from './pets-data.js?mxj=0.8.0';
-import { animalIcon, animalShape, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.8.0';
+} from './pets-data.js?mxj=0.8.1';
+import { animalIcon, animalShape, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.8.1';
 
 let app = null;
 let state = null;
@@ -570,11 +570,11 @@ function viewDress(char, home) {
     const color = d.color || GEAR[d.type].color;
     const anchors = animalAnchors(a, 'sit');
     const handles = custom && a.art?.path ? [['neck', '脖子', anchors.neck], ['head', '头顶', anchors.head]].map(([slot, label, p]) =>
-        `<g class="mxj-handle" data-handle="${slot}" transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})"><circle r="3.2" fill="#FFFFFF" fill-opacity=".55" stroke="#C2452D" stroke-width=".8"/><circle r="0.9" fill="#C2452D"/><text y="-4.4" text-anchor="middle" font-size="3.4" fill="#C2452D" stroke="#FFFFFF" stroke-width=".6" paint-order="stroke">${label}</text></g>`).join('') : '';
+        `<g class="mxj-handle" data-handle="${slot}" transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})"><circle r="6.5" fill="#FFFFFF" fill-opacity="0.01"/><circle r="3.2" fill="#FFFFFF" fill-opacity=".55" stroke="#C2452D" stroke-width=".8"/><circle r="0.9" fill="#C2452D"/><text y="-4.4" text-anchor="middle" font-size="3.4" fill="#C2452D" stroke="#FFFFFF" stroke-width=".6" paint-order="stroke">${label}</text></g>`).join('') : '';
     const worn = (a.gear || []).map(g => `<span class="mxj-worn"><i style="background:${esc(g.color || GEAR[g.type]?.color || '#888')}"></i>${esc(g.item || GEAR[g.type]?.label || '')}<small>${g.by === 'user' ? '你戴的' : '他给它戴的'}</small><button type="button" class="mxj-link-btn" data-act="dress-off" data-id="${esc(g.type)}" aria-label="摘下${esc(g.item || '')}">摘下</button></span>`).join('');
     const sample = { ...a, gear: [...(a.gear || []).filter(g => GEAR[g.type]?.slot !== GEAR[d.type].slot)] };
     return `<section class="mxj-card">
-        <div class="mxj-dress-stage"><svg viewBox="0 0 80 64" role="img" aria-label="${esc(a.name)}现在的样子">${animalShape(a, 'sit')}${handles}</svg></div>
+        <div class="mxj-dress-stage${handles ? ' is-draggable' : ''}"><svg viewBox="0 0 80 64" role="img" aria-label="${esc(a.name)}现在的样子">${animalShape(a, 'sit')}${handles}</svg></div>
         ${custom && a.art?.path ? `<p class="mxj-muted">画出来的宠物，装扮按红圈的位置戴：拖动「脖子」和「头顶」两个圆点，放到它脖子和头顶上，以后戴什么都按这里放。</p>
           <button type="button" class="mxj-btn" data-act="dress-redetect">重新自动找位置</button>` : ''}
       </section>

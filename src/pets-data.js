@@ -266,8 +266,9 @@ export function pettingNow(home, t = Date.now(), { away = false } = {}) {
         const a = animals.find(x => x.id === p.pet);
         if (a) return { id: a.id, asked: true };
     }
-    if (home.presence?.spot) return null;
+    // 自己去逗：他没在哪件家具旁边、也不是在睡觉洗澡出门的时候，四段时间里大约有一段
+    if (home.presence?.spot || /睡|打盹|困|眯|洗澡|泡澡|出门|做饭|炒菜/.test(home.presence?.activity || '')) return null;
     const slot = Math.floor(t / SLOT);
-    if (hash(`pat:${slot}`) % 3) return null;
+    if (hash(`pat:${slot}`) % 4) return null;
     return { id: animals[hash(`patwho:${slot}`) % animals.length].id, asked: false };
 }
