@@ -212,7 +212,7 @@
 #mxj-root .mxj-avatar img { width: 100%; height: 100%; object-fit: cover; }
 #mxj-root .mxj-event { font-size: 15px; line-height: 1.65; white-space: pre-wrap; }
 #mxj-root .mxj-turns { display: flex; flex-direction: column; gap: 6px; }
-#mxj-root .mxj-turn { font-size: 14px; line-height: 1.6; padding: 8px 10px; background: var(--mxj-ground); border-radius: 4px 12px 12px 12px; white-space: pre-wrap; margin-top: 4px; }
+#mxj-root .mxj-turn { font-size: 14px; line-height: 1.6; padding: 8px 10px; background: var(--mxj-surface, var(--mxj-ground)); color: var(--mxj-ink); border-radius: 4px 12px 12px 12px; white-space: pre-wrap; margin-top: 4px; }
 #mxj-root .mxj-turn.is-user { align-self: flex-end; background: var(--mxj-green-soft); border-radius: 12px 4px 12px 12px; color: var(--mxj-green); max-width: 85%; }
 #mxj-root .mxj-options { display: flex; flex-wrap: wrap; gap: 8px; }
 #mxj-root .mxj-options .mxj-btn { flex: 1 1 40%; }
@@ -388,7 +388,7 @@
     flex: none; min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px;
     background: transparent; color: var(--mxj-muted); font-size: 13px; cursor: pointer;
 }
-#mxj-root .mxj-tab.is-on { background: var(--mxj-ground); color: var(--mxj-ink); font-weight: 700; }
+#mxj-root .mxj-tab.is-on { background: var(--mxj-surface, var(--mxj-ground)); color: var(--mxj-ink); font-weight: 700; }
 @media (max-width: 480px) { #mxj-root .mxj-drawer-card .mxj-tab { flex: 1 0 auto; padding: 0 7px; } }
 #mxj-root .mxj-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 #mxj-root .mxj-tile {
@@ -513,6 +513,8 @@
  --mxj-ground:#264D60; --mxj-paper:#F8E0AF; --mxj-white:#FFF0CD;
  --mxj-ink:#392A20; --mxj-muted:#785338; --mxj-line:#A66C39; --mxj-line-soft:#D4AC72;
  --mxj-green:#52723E; --mxj-green-soft:#EDD7A5;
+ /* 卡片里的浅色底（他回的话、选中的页签）：像素风的页面底色是深蓝，不能拿来当卡片里的底 */
+ --mxj-surface:#F1D9A6;
  --mxj-display:ui-monospace,"SFMono-Regular","Consolas",monospace;
 }
 #mxj-root[data-theme="pixel"] .mxj-window { border:4px solid #132F3C; border-radius:0; box-shadow:inset 0 0 0 3px #74A5B4, 5px 5px 0 #142A35; }
@@ -941,3 +943,16 @@
 #mxj-root .mxj-gear-color i { width: 30px; height: 30px; border-radius: 50%; box-shadow: inset 0 0 0 1px #00000022; }
 #mxj-root .mxj-gear-color.is-on i { box-shadow: 0 0 0 3px var(--mxj-paper), 0 0 0 5px var(--mxj-green); }
 @media (max-width: 359px) { #mxj-root .mxj-gear-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* 看得清：文字和底色的对比度都要够（小字 ≥ 4.5，大字 ≥ 3） · 0.8.2 */
+#mxj-root .mxj-deco-bar .mxj-muted { color: var(--mxj-ink); }
+#mxj-root .mxj-turn.is-user { color: var(--mxj-ink); }
+#mxj-root[data-theme="pixel"] { --mxj-muted: #664429; }
+#mxj-root[data-theme="pixel"] .mxj-deco-bar .mxj-muted { color: #FFF0CB; }
+#mxj-root[data-theme="pixel"] .mxj-btn.is-primary, #mxj-root[data-theme="pixel"] .mxj-chip.is-on, #mxj-root[data-theme="pixel"] .mxj-seg button.is-on { background: #46672F; border-color: #2C4321; color: #FFF5D8; }
+#mxj-root[data-theme="scrapbook"] { --mxj-muted: #5E4A30; }
+#mxj-root[data-theme="storybook"] { --mxj-muted: #6E4A4D; --mxj-green: #94505E; }
+#mxj-root[data-theme="pixel"] .mxj-group-sum { color: #3F6474; }
+#mxj-root[data-theme="pixel"] { --mxj-green: #46672F; }
+#mxj-root[data-theme="pixel"] .mxj-tile-name { color: var(--mxj-ink); }
+#mxj-root[data-theme="scrapbook"] .mxj-danger { color: #9A3B24; border-color: #9A3B24; }

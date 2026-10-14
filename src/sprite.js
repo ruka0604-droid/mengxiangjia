@@ -1,8 +1,8 @@
-import { moodFace } from './theme.js?mxj=0.8.1';
+import { moodFace } from './theme.js?mxj=0.8.2';
 // 梦想家 · Q 版像素小人
 // 16×24 的像素格，插件自己画：发型、发色、肤色、眼睛、衣服、配饰都来自「形象」数据，
 // 姿势（站 / 坐）、手里的东西（书 / 杯子）、闭眼按他正在做的事来定。
-import { hexOr, shade, esc } from './util.js?mxj=0.8.1';
+import { hexOr, shade, esc } from './util.js?mxj=0.8.2';
 
 export const GRID_W = 16;
 export const GRID_H = 24;
