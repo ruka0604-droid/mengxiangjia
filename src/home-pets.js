@@ -1,19 +1,19 @@
 // 梦想家 · 小家伙们：领养、种植、照顾，植物长大时他的纸条，回家时一起写的宠物纸条，照描述画一只
-import { uid, now, parseJsonLoose, asText, clip, daysSince } from './util.js?mxj=0.7.0';
-import { generate } from './api.js?mxj=0.7.0';
-import { gatherContext, contextBlock } from './character.js?mxj=0.7.0';
-import { getHome, setHome } from './settings.js?mxj=0.7.0';
-import { PET_NOTE_SYSTEM, PET_DRAW_SYSTEM } from './home-prompts.js?mxj=0.7.0';
-import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.7.0';
-import { homeTheme } from './theme.js?mxj=0.7.0';
-import { ART_STYLES, ART_NEGATIVE } from './art.js?mxj=0.7.0';
-import { requestImage, saveImage } from './imageApi.js?mxj=0.7.0';
-import { cleanBackground } from './cutout.js?mxj=0.7.0';
-import { roomTypeOf } from './home-rooms.js?mxj=0.7.0';
+import { uid, now, parseJsonLoose, asText, clip, daysSince } from './util.js?mxj=0.7.1';
+import { generate } from './api.js?mxj=0.7.1';
+import { gatherContext, contextBlock } from './character.js?mxj=0.7.1';
+import { getHome, setHome } from './settings.js?mxj=0.7.1';
+import { PET_NOTE_SYSTEM, PET_DRAW_SYSTEM } from './home-prompts.js?mxj=0.7.1';
+import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.7.1';
+import { homeTheme } from './theme.js?mxj=0.7.1';
+import { ART_STYLES, ART_NEGATIVE } from './art.js?mxj=0.7.1';
+import { requestImage, saveImage } from './imageApi.js?mxj=0.7.1';
+import { cleanBackground } from './cutout.js?mxj=0.7.1';
+import { roomTypeOf } from './home-rooms.js?mxj=0.7.1';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, TIME,
     animalStatus, animalRoom, animalLabel, genderLabel, plantStatus, stageFor, pickMischief,
-} from './pets-data.js?mxj=0.7.0';
+} from './pets-data.js?mxj=0.7.1';
 
 export function getPets(home) {
     if (!home) return { animals: [], plants: [], events: [] };
@@ -366,6 +366,8 @@ export function applyPetVisit(home, petNotes, meta, at = now()) {
         const p = m.trouble ? pets.plants.find(x => x.id === m.id) : null;
         if (p) p.troubleSeen = m.trouble;
     }
+    // 自己缓过来的（浇太多过了几天就好了）也清掉记号，下次再蔫还会说
+    for (const p of pets.plants) if (!plantStatus(p, at).trouble) p.troubleSeen = '';
     pets.eventsSeenAt = Math.max(Number(pets.eventsSeenAt) || 0, meta.eventsUpTo || 0);
     const list = Array.isArray(petNotes) ? petNotes : (petNotes && (typeof petNotes === 'object' || typeof petNotes === 'string') ? [petNotes] : []);
     const all = [...pets.animals, ...pets.plants];

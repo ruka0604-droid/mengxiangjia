@@ -1,19 +1,19 @@
 // 梦想家 · 界面 · 小家伙们（照顾、领养、种一盆、成长记录）和小屋里点中它时的那张卡
-import { esc, formatTime, daysSince } from './util.js?mxj=0.7.0';
-import { characterView } from './character.js?mxj=0.7.0';
-import { getHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.7.0';
-import { isAway } from './home-visit.js?mxj=0.7.0';
-import { imageConfigProblems } from './imageApi.js?mxj=0.7.0';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.7.1';
+import { characterView } from './character.js?mxj=0.7.1';
+import { getHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.7.1';
+import { isAway } from './home-visit.js?mxj=0.7.1';
+import { imageConfigProblems } from './imageApi.js?mxj=0.7.1';
 import {
     getPets, findPet, adoptAnimal, plantNew, careAnimal, moveAnimal, removePet,
     waterPlant, fertilizePlant, writeStageNote, drawCustomPet, drawPetImage,
-} from './home-pets.js?mxj=0.7.0';
+} from './home-pets.js?mxj=0.7.1';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, STAGE_POINTS,
     animalStatus, animalRoom, animalPose, animalLabel, genderLabel,
     plantStatus, nextStageHint, todayTasks, dayKey,
-} from './pets-data.js?mxj=0.7.0';
-import { animalIcon, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.7.0';
+} from './pets-data.js?mxj=0.7.1';
+import { animalIcon, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.7.1';
 
 let app = null;
 let state = null;
@@ -71,6 +71,12 @@ export function setup(a) {
                     if (state.view === 'plant') app.go('pets'); else { state.keepScroll = true; render(); }
                     flash(`${pet.name}离开了`);
                 });
+            },
+            // 长大时那张纸条没写成（出错或取消了），可以请他补一张
+            'plant-stage-note'(el, char) {
+                if (!char || state.busy) return;
+                const stage = Number(el.dataset.stage);
+                void run(`${characterView(char).name}在写纸条…`, signal => writeStageNote(char, el.dataset.id, stage, { signal }));
             },
             'plant-open'(el) { ui().plantId = el.dataset.id; state.selectedPet = ''; app.go('plant'); },
             // 领养
@@ -450,6 +456,7 @@ function viewPlant(char, home) {
           <div class="mxj-grow">
             <div class="mxj-stage-head">${plantStageIcon(p, i, { size: 20 })}<b>${esc(name)}</b>${reached && at ? `<span class="mxj-muted">${esc(formatTime(at))}</span>` : ''}</div>
             ${note ? `<blockquote class="mxj-stage-note">${esc(note.text)}<span>—— ${esc(characterView(char).name)}</span></blockquote>` : ''}
+            ${!note && reached && i > 0 ? `<button type="button" class="mxj-link-btn" data-act="plant-stage-note" data-id="${esc(p.id)}" data-stage="${i}"${state.busy ? ' disabled' : ''}>这一阶段他还没写纸条，请他写一张</button>` : ''}
             ${i === st.stage + 1 ? `<div class="mxj-muted">${esc(nextStageHint(p))}</div>` : ''}
           </div>
         </li>`;

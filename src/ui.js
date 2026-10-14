@@ -1,21 +1,21 @@
 // 梦想家 · 界面核心：面板的打开关闭、确认框、渲染、忙碌条、事件分发
 // 每一页的内容和按钮在 view-*.js 里；这里只负责把它们接起来。
-import { refreshFloating } from './floating.js?mxj=0.7.0';
-import { homeTheme } from './theme.js?mxj=0.7.0';
-import { esc, LOG_PREFIX } from './util.js?mxj=0.7.0';
-import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.7.0';
-import { characterView } from './character.js?mxj=0.7.0';
-import { shouldAutoVisit } from './home-visit.js?mxj=0.7.0';
-import { createDecorator } from './decorate.js?mxj=0.7.0';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.0';
-import { setup as setupHome } from './view-home.js?mxj=0.7.0';
-import { setup as setupBuild } from './view-build.js?mxj=0.7.0';
-import { setup as setupNotes } from './view-notes.js?mxj=0.7.0';
-import { setup as setupDiary } from './view-diary.js?mxj=0.7.0';
-import { setup as setupLook } from './view-look.js?mxj=0.7.0';
-import { setup as setupArt } from './view-art.js?mxj=0.7.0';
-import { setup as setupSettings } from './view-settings.js?mxj=0.7.0';
-import { setup as setupPets } from './view-pets.js?mxj=0.7.0';
+import { refreshFloating } from './floating.js?mxj=0.7.1';
+import { homeTheme } from './theme.js?mxj=0.7.1';
+import { esc, LOG_PREFIX } from './util.js?mxj=0.7.1';
+import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.7.1';
+import { characterView } from './character.js?mxj=0.7.1';
+import { shouldAutoVisit } from './home-visit.js?mxj=0.7.1';
+import { createDecorator } from './decorate.js?mxj=0.7.1';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.1';
+import { setup as setupHome } from './view-home.js?mxj=0.7.1';
+import { setup as setupBuild } from './view-build.js?mxj=0.7.1';
+import { setup as setupNotes } from './view-notes.js?mxj=0.7.1';
+import { setup as setupDiary } from './view-diary.js?mxj=0.7.1';
+import { setup as setupLook } from './view-look.js?mxj=0.7.1';
+import { setup as setupArt } from './view-art.js?mxj=0.7.1';
+import { setup as setupSettings } from './view-settings.js?mxj=0.7.1';
+import { setup as setupPets } from './view-pets.js?mxj=0.7.1';
 
 const ROOT_ID = 'mxj-root';
 

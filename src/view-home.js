@@ -1,18 +1,18 @@
 // 梦想家 · 界面 · 小屋首页（房间、他在做什么、扩建与搬家）和回家记录
-import { moodFace, homeTheme } from './theme.js?mxj=0.7.0';
-import { esc, formatTime, daysSince } from './util.js?mxj=0.7.0';
-import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.7.0';
-import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.7.0';
-import { characterView, avatarUrl } from './character.js?mxj=0.7.0';
-import { spriteInRoom, poseFor } from './sprite.js?mxj=0.7.0';
-import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.7.0';
-import { getLook } from './home-house.js?mxj=0.7.0';
-import { comeHome, respond, isAway } from './home-visit.js?mxj=0.7.0';
-import { unreadFromChar } from './home-notes.js?mxj=0.7.0';
-import { unreadDiary } from './home-diary.js?mxj=0.7.0';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.0';
-import { petsLayer } from './pet-art.js?mxj=0.7.0';
-import { animalStatus, plantStatus, animalRoom } from './pets-data.js?mxj=0.7.0';
+import { moodFace, homeTheme } from './theme.js?mxj=0.7.1';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.7.1';
+import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.7.1';
+import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.7.1';
+import { characterView, avatarUrl } from './character.js?mxj=0.7.1';
+import { spriteInRoom, poseFor } from './sprite.js?mxj=0.7.1';
+import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.7.1';
+import { getLook } from './home-house.js?mxj=0.7.1';
+import { comeHome, respond, isAway } from './home-visit.js?mxj=0.7.1';
+import { unreadFromChar } from './home-notes.js?mxj=0.7.1';
+import { unreadDiary } from './home-diary.js?mxj=0.7.1';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.1';
+import { petsLayer } from './pet-art.js?mxj=0.7.1';
+import { animalStatus, plantStatus, animalRoom } from './pets-data.js?mxj=0.7.1';
 
 let app = null;
 let state = null;
