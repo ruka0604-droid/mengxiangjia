@@ -1,19 +1,20 @@
 // 梦想家 · 小家伙们：领养、种植、照顾，植物长大时他的纸条，回家时一起写的宠物纸条，照描述画一只
-import { uid, now, parseJsonLoose, asText, clip, daysSince } from './util.js?mxj=0.7.1';
-import { generate } from './api.js?mxj=0.7.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.7.1';
-import { getHome, setHome } from './settings.js?mxj=0.7.1';
-import { PET_NOTE_SYSTEM, PET_DRAW_SYSTEM } from './home-prompts.js?mxj=0.7.1';
-import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.7.1';
-import { homeTheme } from './theme.js?mxj=0.7.1';
-import { ART_STYLES, ART_NEGATIVE } from './art.js?mxj=0.7.1';
-import { requestImage, saveImage } from './imageApi.js?mxj=0.7.1';
-import { cleanBackground } from './cutout.js?mxj=0.7.1';
-import { roomTypeOf } from './home-rooms.js?mxj=0.7.1';
+import { uid, now, parseJsonLoose, asText, clip, daysSince, hexOr } from './util.js?mxj=0.8.0';
+import { generate } from './api.js?mxj=0.8.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
+import { getHome, setHome } from './settings.js?mxj=0.8.0';
+import { PET_NOTE_SYSTEM, PET_DRAW_SYSTEM } from './home-prompts.js?mxj=0.8.0';
+import { liveHome, houseSummary, notesHistory } from './home-shared.js?mxj=0.8.0';
+import { homeTheme } from './theme.js?mxj=0.8.0';
+import { ART_STYLES, ART_NEGATIVE } from './art.js?mxj=0.8.0';
+import { requestImage, saveImage } from './imageApi.js?mxj=0.8.0';
+import { cleanBackground } from './cutout.js?mxj=0.8.0';
+import { roomTypeOf } from './home-rooms.js?mxj=0.8.0';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, TIME,
     animalStatus, animalRoom, animalLabel, genderLabel, plantStatus, stageFor, pickMischief,
-} from './pets-data.js?mxj=0.7.1';
+    GEAR, gearTypeOf, gearSummary,
+} from './pets-data.js?mxj=0.8.0';
 
 export function getPets(home) {
     if (!home) return { animals: [], plants: [], events: [] };
@@ -49,6 +50,7 @@ export async function adoptAnimal(char, opts = {}, { signal } = {}) {
     let art = null;
     if (kind === 'custom') {
         if (!opts.dataUrl) throw new Error('先画出来，满意了再领养');
+        opts = { ...opts, anchors: await detectPetAnchors(opts.dataUrl) };
         const path = await saveImage(opts.dataUrl, char?.name || home.charName, { signal, pixelArt: homeTheme(home) === 'pixel' });
         art = { path, prompt: opts.prompt || '' };
     }
@@ -73,6 +75,7 @@ export async function adoptAnimal(char, opts = {}, { signal } = {}) {
         animal.species = clip(String(opts.species || '').trim(), 8) || '小家伙';
         animal.desc = clip(String(opts.desc || '').trim(), 200);
         animal.art = art;
+        animal.anchors = opts.anchors || null;
     }
     pets.animals.push(animal);
     pushEvent(pets, animal.id, `你领养了${animal.name}（${animalLabel(animal)}，${genderLabel(animal)}）`);
@@ -216,6 +219,131 @@ export function fertilizePlant(char, id) {
     return { stageUp, msg: '施好肥了' };
 }
 
+// ---------------- 装扮 ----------------
+
+// 戴上或摘下：by 是 char（他戴的，来自日记、纸条、回家、回应）或 user（你在装扮页戴的）
+export function applyGear(home, list, by = 'char', charName = '他') {
+    const pets = getPets(home);
+    const entries = Array.isArray(list) ? list : (list && typeof list === 'object' ? [list] : []);
+    const clean = v => String(v ?? '').replace(/^\s*(?:id\s*[=:：]\s*)?/i, '').replace(/[「」"'`\s]/g, '');
+    const done = [];
+    for (const e of entries.slice(0, 4)) {
+        if (!e || typeof e !== 'object') continue;
+        const item = asText(e.item || e.name, 12);
+        const a = pets.animals.find(x => x.id === clean(e.about || e.id)) || pets.animals.find(x => item && String(e.about || '').includes(x.name));
+        if (!a) continue;
+        const type = gearTypeOf(`${item} ${e.type || ''}`, e.type);
+        if (!type) continue;
+        a.gear = Array.isArray(a.gear) ? a.gear : [];
+        const slot = GEAR[type].slot;
+        if (e.remove === true || e.remove === 'true') {
+            const before = a.gear.length;
+            // 说摘下的是哪一种就摘哪一种；身上没有这一种，就摘同一个位置上的那件
+            a.gear = a.gear.some(g => g.type === type) ? a.gear.filter(g => g.type !== type) : a.gear.filter(g => GEAR[g.type]?.slot !== slot);
+            if (a.gear.length !== before) { pushEvent(pets, a.id, `${by === 'char' ? charName : '你'}给${a.name}摘下了${item || GEAR[type].label}`); done.push(a.name); }
+            continue;
+        }
+        a.gear = a.gear.filter(g => GEAR[g.type]?.slot !== slot);
+        a.gear.push({ type, color: hexOr(e.color, GEAR[type].color), item: item || GEAR[type].label, by: by === 'user' ? 'user' : 'char', at: now() });
+        pushEvent(pets, a.id, `${by === 'char' ? charName : '你'}给${a.name}戴上了${item || GEAR[type].label}`);
+        done.push(a.name);
+    }
+    return done;
+}
+
+export function dressAnimal(char, id, type, color) {
+    const home = getHome(char);
+    if (!GEAR[type]) throw new Error('不认识的装扮');
+    const done = applyGear(home, [{ about: id, type, color, item: GEAR[type].label }], 'user');
+    if (!done.length) throw new Error('找不到它了');
+    setHome(char, home);
+}
+
+export function undressAnimal(char, id, type) {
+    const home = getHome(char);
+    const a = getPets(home).animals.find(x => x.id === id);
+    if (!a) throw new Error('找不到它了');
+    const g = (a.gear || []).find(x => x.type === type);
+    a.gear = (a.gear || []).filter(x => x.type !== type);
+    if (g) pushEvent(getPets(home), a.id, `你给${a.name}摘下了${g.item || GEAR[type]?.label || ''}`);
+    setHome(char, home);
+}
+
+// 画出来的宠物：存它脖子、头顶在图上的位置（0–1），拖动调整后标成 manual
+export function setPetAnchors(char, id, anchors) {
+    const home = getHome(char);
+    const a = getPets(home).animals.find(x => x.id === id);
+    if (!a) return;
+    a.anchors = { ...(a.anchors || {}), ...anchors };
+    setHome(char, home);
+}
+
+// 从去掉背景的图里找头顶和脖子：从上往下扫，头和身子之间最窄的那一行算脖子
+export async function detectPetAnchors(src) {
+    const fallback = { ar: 1, neck: { x: 0.5, y: 0.48, w: 0.3 }, head: { x: 0.5, y: 0.06 }, auto: true, guessed: true };
+    try {
+        const img = await new Promise((resolve, reject) => { const i = new Image(); i.onload = () => resolve(i); i.onerror = reject; i.src = src; });
+        const W = img.naturalWidth, H = img.naturalHeight;
+        if (!W || !H) return fallback;
+        const scale = Math.min(1, 200 / Math.max(W, H));
+        const w = Math.max(1, Math.round(W * scale)), h = Math.max(1, Math.round(H * scale));
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        const c = canvas.getContext('2d', { willReadFrequently: true });
+        c.drawImage(img, 0, 0, w, h);
+        const d = c.getImageData(0, 0, w, h).data;
+        const rows = [];
+        let transparent = 0;
+        for (let y = 0; y < h; y++) {
+            let l = -1, r = -1;
+            for (let x = 0; x < w; x++) {
+                const al = d[(y * w + x) * 4 + 3];
+                if (al < 250) transparent++;
+                if (al > 60) { if (l < 0) l = x; r = x; }
+            }
+            rows.push(l < 0 ? null : { l, r, width: r - l + 1 });
+        }
+        const out = { ...fallback, ar: W / H };
+        // 没有透明底（用了原图）就只能猜
+        if (transparent < w * h * 0.05) return out;
+        const top = rows.findIndex(Boolean);
+        let bottom = h - 1;
+        while (bottom > top && !rows[bottom]) bottom--;
+        if (top < 0 || bottom - top < 10) return out;
+        const span = bottom - top;
+        const maxW = Math.max(...rows.filter(Boolean).map(r => r.width));
+        let best = null;
+        for (let y = Math.round(top + span * 0.22); y <= Math.round(top + span * 0.62); y++) {
+            const row = rows[y];
+            if (!row || row.width < maxW * 0.15) continue;
+            if (!best || row.width < best.width) best = { ...row, y };
+        }
+        const headRow = rows.slice(top, top + Math.max(2, Math.round(span * 0.08))).filter(Boolean);
+        const headX = headRow.length ? headRow.reduce((s, r) => s + (r.l + r.r) / 2, 0) / headRow.length : w / 2;
+        if (best) out.neck = { x: (best.l + best.r) / 2 / w, y: best.y / h, w: Math.min(0.6, best.width / w * 0.9) };
+        else out.neck = { x: 0.5, y: (top + span * 0.42) / h, w: 0.3 };
+        out.head = { x: headX / w, y: (top + span * 0.05) / h };
+        out.guessed = false;
+        return out;
+    } catch {
+        return fallback;
+    }
+}
+
+// 给模型看的：小家伙们和它们戴着什么，以及 petGear 的写法
+export function petsBrief(home) {
+    const animals = home?.pets?.animals || [];
+    if (!animals.length) return '';
+    return animals.map(a => `- ${a.name}（${animalLabel(a)}，id=${a.id}）${gearSummary(a) ? `：戴着${gearSummary(a)}` : ''}`).join('\n');
+}
+export const PET_GEAR_FORMAT = `"petGear": [ { "about": "小家伙的 id", "item": "戴了什么（如：红绳平安结）", "type": "${Object.keys(GEAR).join('/')} 之一", "color": "#RRGGBB", "remove": false } ]`;
+export const PET_GEAR_RULE = '如果他这次在场景、纸条或日记里给小家伙戴上了什么（项圈、铃铛、平安结、蝴蝶结、小帽子之类），或者摘了下来，写进 petGear（摘下来 remove 填 true）；没有就是空数组。';
+// 在一个 JSON 格式说明的最后一个 } 前面加上 petGear
+export function withPetGear(format) {
+    const i = format.lastIndexOf('}');
+    return i < 0 ? format : `${format.slice(0, i).trimEnd()}, ${PET_GEAR_FORMAT} }`;
+}
+
 // ---------------- 植物长大：他留一张纸条（一次调用） ----------------
 
 export async function writeStageNote(char, plantId, stage, { signal } = {}) {
@@ -308,6 +436,7 @@ export function petVisitBlock(home, { t = now(), rnd = Math.random } = {}) {
         const parts = [`在${rn(animalRoom(a, rooms, t))}`, st.fedToday ? '今天喂过了' : '今天还没喂', st.waterToday ? '换过水' : '还没换水'];
         if (st.needsWalk) parts.push(st.walkedToday ? '遛过了' : '今天还没遛');
         if (st.full <= 1) parts.push('饿得直叫');
+        if (gearSummary(a)) parts.push(`戴着${gearSummary(a)}`);
         lines.push(`- ${a.name}（${animalLabel(a)}，${genderLabel(a)}，id=${a.id}）：${parts.join('，')}`);
     }
     for (const p of pets.plants || []) {
@@ -342,6 +471,7 @@ export function petVisitBlock(home, { t = now(), rnd = Math.random } = {}) {
         ? `\n这次要用 petNotes 写纸条：${pick.map(m => m.what).join('；')}。每件一张，最多 2 张，about 填它的 id。纸条是他写给你的，语气符合他的性格，可以抱怨、吐槽、撒娇或幽默。`
         : ask ? '\n可以用 petNotes 写一张和小家伙们有关的纸条（比如照顾它们时的小事、他带狗散步时遇到的事），一张就够，about 填它的 id。'
         : '\n这次 petNotes 留空。';
+    if ((pets.animals || []).length) text += `\n${PET_GEAR_RULE}`;
     return {
         text,
         meta: {
@@ -352,9 +482,10 @@ export function petVisitBlock(home, { t = now(), rnd = Math.random } = {}) {
     };
 }
 
-export function applyPetVisit(home, petNotes, meta, at = now()) {
+export function applyPetVisit(home, petNotes, meta, at = now(), { gear = null, charName = '他' } = {}) {
     if (!meta) return;
     const pets = getPets(home);
+    if (gear) applyGear(home, gear, 'char', charName);
     if (meta.mischief) {
         const a = pets.animals.find(x => x.id === meta.mischief.id);
         if (a) {
@@ -389,4 +520,5 @@ export function applyPetVisit(home, petNotes, meta, at = now()) {
     }
 }
 
-export const PET_NOTES_FORMAT = '"petNotes": [ { "about": "小家伙的 id", "place": "贴在哪（6 字以内）", "text": "纸条内容" } ]';
+export const PET_NOTES_FORMAT = `"petNotes": [ { "about": "小家伙的 id", "place": "贴在哪（6 字以内）", "text": "纸条内容" } ]`;
+export const PET_VISIT_FORMAT = (hasAnimals) => hasAnimals ? `${PET_NOTES_FORMAT},\n  ${PET_GEAR_FORMAT}` : PET_NOTES_FORMAT;

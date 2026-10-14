@@ -1,7 +1,7 @@
 // 梦想家 · 生成时共用的小工具：确认家还在、给模型看的家的近况
-import { homeTheme, themeName } from './theme.js?mxj=0.7.1';
-import { getHome } from './settings.js?mxj=0.7.1';
-import { petsSummary } from './pets-data.js?mxj=0.7.1';
+import { homeTheme, themeName } from './theme.js?mxj=0.8.0';
+import { getHome } from './settings.js?mxj=0.8.0';
+import { petsSummary } from './pets-data.js?mxj=0.8.0';
 
 // 生成要等一会儿；等完时这个家可能已经被拆掉了，就不再往里写，给一句看得懂的提示。
 export function liveHome(char) {

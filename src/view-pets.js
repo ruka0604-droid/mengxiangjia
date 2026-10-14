@@ -1,19 +1,21 @@
 // 梦想家 · 界面 · 小家伙们（照顾、领养、种一盆、成长记录）和小屋里点中它时的那张卡
-import { esc, formatTime, daysSince } from './util.js?mxj=0.7.1';
-import { characterView } from './character.js?mxj=0.7.1';
-import { getHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.7.1';
-import { isAway } from './home-visit.js?mxj=0.7.1';
-import { imageConfigProblems } from './imageApi.js?mxj=0.7.1';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.8.0';
+import { characterView } from './character.js?mxj=0.8.0';
+import { getHome, setHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.8.0';
+import { isAway, respond } from './home-visit.js?mxj=0.8.0';
+import { imageConfigProblems } from './imageApi.js?mxj=0.8.0';
 import {
     getPets, findPet, adoptAnimal, plantNew, careAnimal, moveAnimal, removePet,
     waterPlant, fertilizePlant, writeStageNote, drawCustomPet, drawPetImage,
-} from './home-pets.js?mxj=0.7.1';
+    dressAnimal, undressAnimal, setPetAnchors, detectPetAnchors,
+} from './home-pets.js?mxj=0.8.0';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, STAGE_POINTS,
     animalStatus, animalRoom, animalPose, animalLabel, genderLabel,
     plantStatus, nextStageHint, todayTasks, dayKey,
-} from './pets-data.js?mxj=0.7.1';
-import { animalIcon, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.7.1';
+    GEAR, GEAR_COLORS, animalAnchors, pettingNow,
+} from './pets-data.js?mxj=0.8.0';
+import { animalIcon, animalShape, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.8.0';
 
 let app = null;
 let state = null;
@@ -27,6 +29,7 @@ function ui() {
     p.tab ||= 'animal';
     p.adopt ||= { mode: 'template', kind: 'cat', coat: 'orange', name: '', gender: 'girl', room: '', desc: '', habit: 'cat', draft: null };
     p.plantNew ||= { kind: 'mint', name: '', room: '' };
+    p.dress ||= { type: 'bow', color: '' };
     return p;
 }
 
@@ -34,8 +37,8 @@ export function setup(a) {
     app = a;
     state = a.state;
     return {
-        views: { pets: viewPets, 'pet-adopt': viewAdopt, 'plant-new': viewPlantNew, plant: viewPlant, petcard: petCardForHome },
-        parents: { 'pet-adopt': 'pets', 'plant-new': 'pets', plant: 'pets' },
+        views: { pets: viewPets, 'pet-adopt': viewAdopt, 'plant-new': viewPlantNew, plant: viewPlant, 'pet-dress': viewDress, petcard: petCardForHome },
+        parents: { 'pet-adopt': 'pets', 'plant-new': 'pets', plant: 'pets', 'pet-dress': 'pets' },
         titles: {
             pets: (char, home) => {
                 const p = getPets(home);
@@ -46,6 +49,10 @@ export function setup(a) {
             plant: (char, home) => {
                 const p = getPets(home).plants.find(x => x.id === ui().plantId);
                 return p ? [p.name, plantStatus(p).stageName] : ['成长记录', ''];
+            },
+            'pet-dress': (char, home) => {
+                const a = getPets(home).animals.find(x => x.id === ui().dressId);
+                return ['换装扮', a ? a.name : ''];
             },
         },
         actions: {
@@ -77,6 +84,57 @@ export function setup(a) {
                 if (!char || state.busy) return;
                 const stage = Number(el.dataset.stage);
                 void run(`${characterView(char).name}在写纸条…`, signal => writeStageNote(char, el.dataset.id, stage, { signal }));
+            },
+            // 装扮
+            'pet-dress-open'(el) { ui().dressId = el.dataset.id; state.selectedPet = ''; app.go('pet-dress'); },
+            'dress-type'(el) { ui().dress.type = el.dataset.id; state.keepScroll = true; render(); },
+            'dress-color'(el) { ui().dress.color = el.dataset.id; state.keepScroll = true; render(); },
+            'dress-put'(el, char) {
+                if (!char || state.busy) return;
+                const d = ui().dress;
+                try { dressAnimal(char, ui().dressId, d.type, d.color || GEAR[d.type]?.color); }
+                catch (error) { state.error = error?.message || String(error); }
+                state.keepScroll = true; render();
+            },
+            'dress-off'(el, char) {
+                if (!char || state.busy) return;
+                undressAnimal(char, ui().dressId, el.dataset.id);
+                state.keepScroll = true; render();
+            },
+            'dress-redetect'(el, char) {
+                const a = getPets(getHome(char)).animals.find(x => x.id === ui().dressId);
+                if (!a?.art?.path || state.busy) return;
+                void detectPetAnchors(a.art.path).then(anchors => {
+                    setPetAnchors(char, a.id, anchors);
+                    state.keepScroll = true; render();
+                    flash(anchors.guessed ? '这张图没有透明底，只能大概放一下，可以拖圆点调整' : '重新找好了');
+                });
+            },
+            // 叫他来摸摸它：走「回应他」，一次调用；之后半小时里他都在它旁边
+            'pet-pat'(el, char) {
+                if (!char || state.busy) return;
+                const home = getHome(char);
+                const a = getPets(home).animals.find(x => x.id === el.dataset.id);
+                if (!a) return;
+                if (isAway(home)) { flash('他还没回家'); return; }
+                const name = characterView(char).name;
+                let ok = false;
+                void run(`${name}过来摸${a.name}了…`, async signal => {
+                    await respond(char, `叫${name}过来，一起摸摸${a.name}`, { signal });
+                    ok = true;
+                }).then(() => {
+                    if (!ok) return;
+                    const h = getHome(char);
+                    const pet = getPets(h).animals.find(x => x.id === a.id);
+                    if (!pet || !h.house) return;
+                    const room = animalRoom(pet, h.house.rooms);
+                    pet.room = room;
+                    pet.placedAt = Date.now();
+                    h.presence = { ...(h.presence || {}), spot: '', petting: { pet: pet.id, until: Date.now() + 30 * 60000 } };
+                    h.currentRoom = room;
+                    setHome(char, h);
+                    app.go('home');
+                });
             },
             'plant-open'(el) { ui().plantId = el.dataset.id; state.selectedPet = ''; app.go('plant'); },
             // 领养
@@ -159,6 +217,9 @@ export function setup(a) {
             adoptName(el) { ui().adopt.name = el.value; },
             adoptDesc(el) { ui().adopt.desc = el.value; },
             pnewName(el) { ui().plantNew.name = el.value; },
+        },
+        after: {
+            'pet-dress'(char, home) { attachDrag(char); autoDetect(char, home); },
         },
         enter: {
             'pet-adopt'(char, home) {
@@ -247,7 +308,9 @@ function animalButtons(a, home, st) {
 
 function animalCard(a, home, { compact = false } = {}) {
     const st = animalStatus(a);
-    const { pose, activity } = animalPose(a);
+    const { pose, activity: act0 } = animalPose(a);
+    const pat = pettingNow(home, Date.now(), { away: isAway(home) });
+    const activity = pat?.id === a.id ? '他在摸它' : act0;
     const where = roomName(home, animalRoom(a, home.house.rooms));
     const walkText = st.walkedToday ? (a.walkedBy === 'char' ? '他今天遛过了' : '今天遛过了') : '今天还没出门';
     const more = compact ? '' : `<details class="mxj-pet-more"><summary>抱到别的房间 · 不养了</summary>
@@ -264,7 +327,12 @@ function animalCard(a, home, { compact = false } = {}) {
         </div>
       </div>
       ${animalButtons(a, home, st)}
+      ${(a.gear || []).length ? `<div class="mxj-muted">戴着：${(a.gear || []).map(g => `${esc(g.item || GEAR[g.type]?.label || '')}（${g.by === 'user' ? '你戴的' : '他给它戴的'}）`).join('、')}</div>` : ''}
       ${a.mischief ? `<div class="mxj-muted">最近捣蛋：${esc(a.mischief.text)} · ${esc(formatTime(a.mischief.at))}</div>` : ''}
+      <div class="mxj-pet-actions">
+        <button type="button" class="mxj-btn" data-act="pet-dress-open" data-id="${esc(a.id)}">换装扮</button>
+        <button type="button" class="mxj-btn" data-act="pet-pat" data-id="${esc(a.id)}"${isAway(home) || state.busy ? ' disabled' : ''}>${isAway(home) ? '他不在家' : '叫他来摸摸它'}</button>
+      </div>
       ${more}
     </section>`;
 }
@@ -487,4 +555,90 @@ function viewPlant(char, home) {
       <section class="mxj-card"><div class="mxj-row mxj-between"><h3>这一周浇的水</h3><span class="mxj-muted">一天一次就够了</span></div><div class="mxj-week">${days.join('')}</div></section>
       ${trouble.length ? `<section class="mxj-card"><h3>他写的</h3>${trouble.map(n => `<blockquote class="mxj-stage-note">${esc(n.text)}<span>${esc(formatTime(n.at))}</span></blockquote>`).join('')}</section>` : ''}
       <details class="mxj-pet-more"><summary>不养了</summary><button type="button" class="mxj-link-btn" data-act="pet-remove" data-id="${esc(p.id)}">不养${esc(p.name)}了</button></details>`;
+}
+
+// ---------------- 换装扮 ----------------
+
+function viewDress(char, home) {
+    if (!home?.house) return app.renderView('build', char, home);
+    const a = getPets(home).animals.find(x => x.id === ui().dressId);
+    if (!a) return viewPets(char, home);
+    const d = ui().dress;
+    const custom = a.kind === 'custom';
+    const types = Object.entries(GEAR).filter(([, g]) => !(custom && g.templateOnly));
+    if (!GEAR[d.type] || (custom && GEAR[d.type].templateOnly)) d.type = types[0][0];
+    const color = d.color || GEAR[d.type].color;
+    const anchors = animalAnchors(a, 'sit');
+    const handles = custom && a.art?.path ? [['neck', '脖子', anchors.neck], ['head', '头顶', anchors.head]].map(([slot, label, p]) =>
+        `<g class="mxj-handle" data-handle="${slot}" transform="translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})"><circle r="3.2" fill="#FFFFFF" fill-opacity=".55" stroke="#C2452D" stroke-width=".8"/><circle r="0.9" fill="#C2452D"/><text y="-4.4" text-anchor="middle" font-size="3.4" fill="#C2452D" stroke="#FFFFFF" stroke-width=".6" paint-order="stroke">${label}</text></g>`).join('') : '';
+    const worn = (a.gear || []).map(g => `<span class="mxj-worn"><i style="background:${esc(g.color || GEAR[g.type]?.color || '#888')}"></i>${esc(g.item || GEAR[g.type]?.label || '')}<small>${g.by === 'user' ? '你戴的' : '他给它戴的'}</small><button type="button" class="mxj-link-btn" data-act="dress-off" data-id="${esc(g.type)}" aria-label="摘下${esc(g.item || '')}">摘下</button></span>`).join('');
+    const sample = { ...a, gear: [...(a.gear || []).filter(g => GEAR[g.type]?.slot !== GEAR[d.type].slot)] };
+    return `<section class="mxj-card">
+        <div class="mxj-dress-stage"><svg viewBox="0 0 80 64" role="img" aria-label="${esc(a.name)}现在的样子">${animalShape(a, 'sit')}${handles}</svg></div>
+        ${custom && a.art?.path ? `<p class="mxj-muted">画出来的宠物，装扮按红圈的位置戴：拖动「脖子」和「头顶」两个圆点，放到它脖子和头顶上，以后戴什么都按这里放。</p>
+          <button type="button" class="mxj-btn" data-act="dress-redetect">重新自动找位置</button>` : ''}
+      </section>
+      <section class="mxj-card"><h3>戴着</h3>${worn ? `<div class="mxj-worn-list">${worn}</div>` : '<p class="mxj-muted">现在什么都没戴。</p>'}</section>
+      <section class="mxj-card"><h3>给它戴</h3>
+        <div class="mxj-gear-grid">${types.map(([id, g]) => `<button type="button" class="mxj-pick is-gear${id === d.type ? ' is-on' : ''}" data-act="dress-type" data-id="${id}" aria-pressed="${id === d.type}"><svg viewBox="0 0 80 64" width="54" height="43" aria-hidden="true">${animalShape({ ...sample, gear: [...sample.gear.filter(x => GEAR[x.type]?.slot !== g.slot), { type: id, color: id === d.type ? color : g.color }] }, 'sit')}</svg><span>${esc(g.label)}</span></button>`).join('')}</div>
+        <div class="mxj-gear-colors">${GEAR_COLORS.map(c => `<button type="button" class="mxj-gear-color${c === color ? ' is-on' : ''}" data-act="dress-color" data-id="${c}" aria-label="颜色 ${c}" aria-pressed="${c === color}"><i style="background:${c}"></i></button>`).join('')}</div>
+        <p class="mxj-muted">脖子、头顶${custom ? '' : '、脸上'}各戴一件，戴新的会换下同一个位置上的旧的。${custom ? '眼镜只能给模板猫狗戴。' : ''}他回家时会看到你给它换了什么。</p>
+        <button type="button" class="mxj-btn is-primary mxj-wide" data-act="dress-put"${state.busy ? ' disabled' : ''}>戴上${esc(GEAR[d.type].label)}</button>
+      </section>`;
+}
+
+// 画出来的宠物还没找过位置，进装扮页时自动找一次
+function autoDetect(char, home) {
+    const a = getPets(home).animals.find(x => x.id === ui().dressId);
+    if (!a || a.kind !== 'custom' || !a.art?.path || a.anchors || ui().detecting) return;
+    ui().detecting = true;
+    void detectPetAnchors(a.art.path).then(anchors => {
+        ui().detecting = false;
+        if (characterKey(currentCharacter()) !== characterKey(char)) return;
+        setPetAnchors(char, a.id, anchors);
+        if (state.view === 'pet-dress') { state.keepScroll = true; render(); }
+    });
+}
+
+// 拖动脖子、头顶两个圆点（手机上用手指拖）
+function attachDrag(char) {
+    const svg = app.root()?.querySelector('.mxj-dress-stage svg');
+    if (!svg) return;
+    let drag = null;
+    const local = e => {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX; pt.y = e.clientY;
+        return pt.matrixTransform(svg.getScreenCTM().inverse());
+    };
+    svg.addEventListener('pointerdown', e => {
+        const h = e.target?.closest?.('[data-handle]');
+        if (!h) return;
+        drag = { h, slot: h.dataset.handle };
+        try { svg.setPointerCapture(e.pointerId); } catch { /* 忽略 */ }
+        e.preventDefault();
+    });
+    svg.addEventListener('pointermove', e => {
+        if (!drag) return;
+        const p = local(e);
+        drag.p = p;
+        drag.h.setAttribute('transform', `translate(${p.x.toFixed(2)} ${p.y.toFixed(2)})`);
+    });
+    const end = () => {
+        if (!drag) return;
+        const { slot, p } = drag;
+        drag = null;
+        if (!p) return;
+        const home = getHome(char);
+        const a = getPets(home).animals.find(x => x.id === ui().dressId);
+        if (!a) return;
+        const box = animalAnchors(a, 'sit').box;
+        const nx = Math.min(1, Math.max(0, (p.x - box.x) / box.w));
+        const ny = Math.min(1, Math.max(0, (p.y - box.y) / box.h));
+        const prev = a.anchors || { ar: 1 };
+        setPetAnchors(char, a.id, { [slot]: { ...(prev[slot] || {}), x: nx, y: ny }, manual: true });
+        state.keepScroll = true;
+        render();
+    };
+    svg.addEventListener('pointerup', end);
+    svg.addEventListener('pointercancel', end);
 }

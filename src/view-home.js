@@ -1,18 +1,18 @@
 // 梦想家 · 界面 · 小屋首页（房间、他在做什么、扩建与搬家）和回家记录
-import { moodFace, homeTheme } from './theme.js?mxj=0.7.1';
-import { esc, formatTime, daysSince } from './util.js?mxj=0.7.1';
-import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.7.1';
-import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.7.1';
-import { characterView, avatarUrl } from './character.js?mxj=0.7.1';
-import { spriteInRoom, poseFor } from './sprite.js?mxj=0.7.1';
-import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.7.1';
-import { getLook } from './home-house.js?mxj=0.7.1';
-import { comeHome, respond, isAway } from './home-visit.js?mxj=0.7.1';
-import { unreadFromChar } from './home-notes.js?mxj=0.7.1';
-import { unreadDiary } from './home-diary.js?mxj=0.7.1';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.1';
-import { petsLayer } from './pet-art.js?mxj=0.7.1';
-import { animalStatus, plantStatus, animalRoom } from './pets-data.js?mxj=0.7.1';
+import { moodFace, homeTheme } from './theme.js?mxj=0.8.0';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.8.0';
+import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.8.0';
+import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.8.0';
+import { characterView, avatarUrl } from './character.js?mxj=0.8.0';
+import { spriteInRoom, poseFor } from './sprite.js?mxj=0.8.0';
+import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.8.0';
+import { getLook } from './home-house.js?mxj=0.8.0';
+import { comeHome, respond, isAway } from './home-visit.js?mxj=0.8.0';
+import { unreadFromChar } from './home-notes.js?mxj=0.8.0';
+import { unreadDiary } from './home-diary.js?mxj=0.8.0';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.8.0';
+import { petsLayer } from './pet-art.js?mxj=0.8.0';
+import { animalStatus, plantStatus, animalRoom, animalPose, pettingNow } from './pets-data.js?mxj=0.8.0';
 
 let app = null;
 let state = null;
@@ -150,11 +150,23 @@ function viewHome(char, home) {
     const showFigure = !awayNow && presence0.atHome !== false && (!spotItem || spotItem.room === roomId);
     const look = getLook(home, char);
     const pose = poseFor({ spotType: spotItem?.type || '', activity: presence0.activity, night });
+    // 他在摸哪一只：那一只在这间房里时，小人走到它旁边蹲下伸手
+    const pat = showFigure ? pettingNow(home, Date.now(), { away: awayNow }) : null;
+    const patAnimal = pat ? (home.pets?.animals || []).find(a => a.id === pat.id && animalRoom(a, house.rooms) === roomId) : null;
+    const xOverride = {};
+    let patX = 0;
+    if (patAnimal) {
+        // 画好立绘的，宠物跑到立绘脚边；像素小人就走到宠物旁边
+        patX = home.art?.path ? 54 : Math.min(80, Math.max(20, animalPose(patAnimal).x));
+        xOverride[patAnimal.id] = patX;
+    }
     const figure = showFigure && !home.art?.path
-        ? (anchors) => spriteInRoom(look, pose, spotItem ? anchors[spotItem.id] : null, SCENE_H, { theme: homeTheme(home), mood: home.presence?.mood, label: `${characterView(char).name}（点一下看他的样子）` })
+        ? (anchors) => patAnimal
+            ? spriteInRoom(look, { sit: true, reach: true, closed: false, sleepy: false, seatOffset: 0 }, { x: patX / 100 * 360 + (patX > 50 ? 44 : -44) }, SCENE_H, { theme: homeTheme(home), mood: home.presence?.mood, flip: patX > 50, label: `${characterView(char).name}（点一下看他的样子）` })
+            : spriteInRoom(look, pose, spotItem ? anchors[spotItem.id] : null, SCENE_H, { theme: homeTheme(home), mood: home.presence?.mood, label: `${characterView(char).name}（点一下看他的样子）` })
         : null;
     // 小家伙们画在最前面一层
-    const petSvg = petsLayer(home, roomId, { selectedId: state.selectedPet });
+    const petSvg = petsLayer(home, roomId, { selectedId: state.selectedPet, patting: patAnimal?.id || '', xOverride });
     const { svg } = renderRoom(room, furniture, house.palette, { night, selectedId: state.selectedFurniture, figure: anchors => (figure ? figure(anchors) : '') + petSvg });
     const away = isAway(home) && !state.busy;
     const presence = home.presence || {};
@@ -172,7 +184,7 @@ function viewHome(char, home) {
 
     const statusLine = away
         ? `<span class="mxj-dot is-away"></span><span class="mxj-grow">他还没回来</span>`
-        : `<span class="mxj-dot"></span><span class="mxj-grow">他在家${presence.activity ? ` · ${esc(presence.activity)}` : ''}</span>`;
+        : `<span class="mxj-dot"></span><span class="mxj-grow">他在家${patAnimal ? ` · 在摸${esc(patAnimal.name)}` : presence.activity ? ` · ${esc(presence.activity)}` : ''}</span>`;
 
     const portrait = showFigure && home.art?.path ? `<button type="button" class="mxj-art-person is-${homeTheme(home)}" data-act="avatar" aria-label="查看角色形象"><img src="${esc(home.art.path)}" alt="${esc(name)}"><span>${esc(moodFace(presence.mood,homeTheme(home)))}</span></button>` : '';
     return `

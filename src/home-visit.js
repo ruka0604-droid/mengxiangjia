@@ -1,14 +1,14 @@
 // 梦想家 · 他回家、回应他、什么时候回家
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.7.1';
-import { generate } from './api.js?mxj=0.7.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.7.1';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.7.1';
-import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.7.1';
-import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.7.1';
-import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.7.1';
-import { pendingChanges } from './home-decor.js?mxj=0.7.1';
-import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.7.1';
-import { petVisitBlock, applyPetVisit, PET_NOTES_FORMAT } from './home-pets.js?mxj=0.7.1';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.8.0';
+import { generate } from './api.js?mxj=0.8.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.8.0';
+import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.8.0';
+import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.8.0';
+import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.8.0';
+import { pendingChanges } from './home-decor.js?mxj=0.8.0';
+import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.8.0';
+import { petVisitBlock, applyPetVisit, applyGear, petsBrief, PET_VISIT_FORMAT, PET_GEAR_FORMAT, PET_GEAR_RULE } from './home-pets.js?mxj=0.8.0';
 
 // ---------------- 他回家 ----------------
 
@@ -74,7 +74,7 @@ ${diaryDue ? `\n# 交换日记\n书桌上的交换日记轮到他写了。他看
   "options": ["你可以做的一件小事", "另一件"],
   "replies": [ { "to": "纸条 id", "text": "他的回信" } ],
   "note": null${pets.text ? `,
-  ${PET_NOTES_FORMAT}` : ''}
+  ${PET_VISIT_FORMAT((home.pets?.animals || []).length > 0)}` : ''}
 }
 如果存在待回应装修变化，必须用 note 写一张反映这些变化的小纸条；若本次有新识别的正文事件，也可以结合写在纸条里。若没有新变化则可不写。不要把冲突自动写成和好。把 note 写成 { "kind": "${NOTE_KINDS.join('/')} 之一", "place": "${NOTE_PLACES.join('/')} 之一", "text": "纸条内容" }；不想留就是 null。${diaryDue ? `
 另外加一个字段 "diary": ${DIARY_FORMAT}` : ''}`;
@@ -160,7 +160,7 @@ function applyVisit(char, parsed, raw, unread, meta = {}) {
             });
         }
     }
-    applyPetVisit(home, p.petNotes, meta.pets, visit.at);
+    applyPetVisit(home, p.petNotes, meta.pets, visit.at, { gear: p.petGear, charName: char?.name || '他' });
     setHome(char, home);
     return visit;
 }
@@ -173,6 +173,8 @@ export async function respond(char, userAction, { signal, furnitureId = '' } = {
     if (!home?.house || !visit) throw new Error('他还没回家');
     const info = await gatherContext(char);
     const furniture = furnitureId ? home.house.furniture.find(f => f.id === furnitureId) : null;
+    // 家里有小动物时，回应里也可以给它们戴东西
+    const brief = petsBrief(home);
     const user = `${contextBlock(info)}
 
 # 你们的家
@@ -184,9 +186,9 @@ ${recentLog(home, 3)}
 # 现在
 他在：${home.presence?.activity || '家里'}
 用户：${userAction}${furniture ? `（在「${furniture.name}」旁边）` : ''}
-
+${brief ? `\n# 家里的小动物\n${brief}\n${PET_GEAR_RULE}\n` : ''}
 # 输出格式
-{ "reply": "他的反应，1 到 3 句", "activity": "他接下来在做什么（8 字以内，可沿用）", "spot": "家具 id 或空", "options": ["你接下来可以做的事", "另一件"] }`;
+{ "reply": "他的反应，1 到 3 句", "activity": "他接下来在做什么（8 字以内，可沿用）", "spot": "家具 id 或空", "options": ["你接下来可以做的事", "另一件"]${brief ? `, ${PET_GEAR_FORMAT}` : ''} }`;
     const raw = await generate({ system: RESPOND_SYSTEM, user, signal });
     const parsed = parseJsonLoose(raw);
     const p = parsed && typeof parsed === 'object' ? parsed : {};
@@ -202,6 +204,7 @@ ${recentLog(home, 3)}
     const ids = new Set(fresh.house.furniture.map(f => f.id));
     if (ids.has(String(p.spot))) fresh.presence.spot = String(p.spot);
     else if (furnitureId && ids.has(furnitureId)) fresh.presence.spot = furnitureId;
+    if (brief && p.petGear) applyGear(fresh, p.petGear, 'char', char?.name || '他');
     setHome(char, fresh);
     return last;
 }

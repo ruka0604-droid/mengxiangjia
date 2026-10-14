@@ -1,7 +1,7 @@
 // 梦想家 · 小家伙们的画法：猫、狗、六种植物（每个生长阶段一个样子），房间里的那一层
-import { esc, shade, luminance } from './util.js?mxj=0.7.1';
-import { SCENE_W, SCENE_H } from './furniture.js?mxj=0.7.1';
-import { coatOf, habitOf, animalStatus, animalRoom, animalPose, animalLabel, plantStatus, PLANT_KINDS } from './pets-data.js?mxj=0.7.1';
+import { esc, shade, luminance } from './util.js?mxj=0.8.0';
+import { SCENE_W, SCENE_H } from './furniture.js?mxj=0.8.0';
+import { coatOf, habitOf, animalStatus, animalRoom, animalPose, animalLabel, plantStatus, PLANT_KINDS, GEAR, animalAnchors } from './pets-data.js?mxj=0.8.0';
 
 const PINK = '#E8A0A8';
 
@@ -70,12 +70,55 @@ ${flops}
 <circle cx="35" cy="23" r="2" fill="${eye}"/><circle cx="45" cy="23" r="2" fill="${eye}"/>`;
 }
 
-export function animalShape(animal, pose = 'sit') {
+function bodyShape(animal, pose) {
     if (animal.kind === 'custom' && animal.art?.path) {
         return `<image href="${esc(animal.art.path)}" x="6" y="2" width="68" height="60" preserveAspectRatio="xMidYMax meet"/>`;
     }
     const coat = coatOf(animal);
     return habitOf(animal) === 'dog' && animal.kind !== 'custom' ? dogShape(coat, pose) : (animal.kind === 'custom' ? catShape(coatOf({ kind: 'cat', coat: 'gray' }), pose) : catShape(coat, pose));
+}
+
+// 装扮：按位置画在身上（本地坐标），画出来的宠物按它脖子的宽窄缩放
+function gearSvg(g, anchors, custom) {
+    const def = GEAR[g.type];
+    if (!def || (def.templateOnly && custom)) return '';
+    const c = g.color || def.color;
+    const dark = shade(c, -0.25);
+    if (def.slot === 'neck') {
+        const a = anchors.neck;
+        if (!a) return '';
+        const w = a.w || 19, x = a.x, y = a.y;
+        const k = w / 19;
+        let s = '';
+        if (g.type === 'collar') s = `<rect x="${x - w / 2}" y="${y - 1.6 * k}" width="${w}" height="${3.2 * k}" rx="${1.6 * k}" fill="${c}"/><circle cx="${x}" cy="${y + 1.8 * k}" r="${1.3 * k}" fill="#E2C38A"/>`;
+        else if (g.type === 'bell') s = `<rect x="${x - w / 2}" y="${y - 1.5 * k}" width="${w}" height="${3 * k}" rx="${1.5 * k}" fill="${c}"/><circle cx="${x}" cy="${y + 3 * k}" r="${2.5 * k}" fill="#E8B53A" stroke="#B98A1F" stroke-width="${0.5 * k}"/><path d="M${x - 1.1 * k} ${y + 3.6 * k}h${2.2 * k}" stroke="#7A5A1A" stroke-width="${0.6 * k}"/>`;
+        else if (g.type === 'knot') s = `<path d="M${x - w / 2} ${y - 1.2 * k}Q${x} ${y + 2.4 * k} ${x + w / 2} ${y - 1.2 * k}" fill="none" stroke="${c}" stroke-width="${1.4 * k}" stroke-linecap="round"/><rect x="${x - 2 * k}" y="${y + 0.2 * k}" width="${4 * k}" height="${4 * k}" fill="${c}" stroke="${dark}" stroke-width="${0.5 * k}" transform="rotate(45 ${x} ${y + 2.2 * k})"/><path d="M${x - 0.8 * k} ${y + 4.6 * k}v${4.4 * k}M${x + 0.8 * k} ${y + 4.6 * k}v${4.4 * k}" stroke="${c}" stroke-width="${0.9 * k}" stroke-linecap="round"/>`;
+        else if (g.type === 'bowtie') s = `<path d="M${x} ${y + k}l${-5.5 * k} ${-3.2 * k}v${6.4 * k}zM${x} ${y + k}l${5.5 * k} ${-3.2 * k}v${6.4 * k}z" fill="${c}"/><circle cx="${x}" cy="${y + k}" r="${1.5 * k}" fill="${dark}"/>`;
+        else if (g.type === 'scarf') s = `<rect x="${x - w / 2 - k}" y="${y - 2.4 * k}" width="${w + 2 * k}" height="${4.8 * k}" rx="${2.2 * k}" fill="${c}"/><path d="M${x + 2.5 * k} ${y + 1.2 * k}h${4.2 * k}l${1.2 * k} ${8 * k}h${-4.2 * k}z" fill="${dark}"/>`;
+        return a.rot ? `<g transform="rotate(${a.rot} ${x} ${y})">${s}</g>` : s;
+    }
+    if (def.slot === 'head') {
+        const a = anchors.head;
+        if (!a) return '';
+        const k = (anchors.neck?.w || 19) / 19;
+        const x = a.x, y = a.y;
+        if (g.type === 'bow') return `<g transform="translate(${x + 5 * k} ${y + 3 * k}) scale(${k})"><ellipse cx="-3.4" cy="0" rx="3.6" ry="2.4" fill="${c}" transform="rotate(-20)"/><ellipse cx="3.4" cy="0" rx="3.6" ry="2.4" fill="${c}" transform="rotate(20)"/><circle r="1.5" fill="${dark}"/></g>`;
+        if (g.type === 'hat') return `<g transform="translate(${x} ${y + 1.5 * k}) scale(${k})"><ellipse cx="0" cy="0" rx="8.5" ry="3.4" fill="${c}"/><ellipse cx="0" cy="1.2" rx="8.5" ry="1.4" fill="${dark}"/><circle cx="0" cy="-3" r="1.5" fill="${c}"/></g>`;
+        if (g.type === 'flower') return `<g transform="translate(${x + 6 * k} ${y + 4 * k}) scale(${k})">${[0, 72, 144, 216, 288].map(r => `<circle cx="0" cy="-2.2" r="1.9" fill="${c}" transform="rotate(${r})"/>`).join('')}<circle r="1.4" fill="#C2452D"/></g>`;
+        return '';
+    }
+    const a = anchors.face;
+    if (!a) return '';
+    return `<g fill="none" stroke="${c}" stroke-width="1.1"><circle cx="${a.x - 5}" cy="${a.y}" r="3.3"/><circle cx="${a.x + 5}" cy="${a.y}" r="3.3"/><path d="M${a.x - 1.7} ${a.y}h3.4"/></g>`;
+}
+
+export function animalShape(animal, pose = 'sit') {
+    const gear = Array.isArray(animal.gear) ? animal.gear : [];
+    if (!gear.length) return bodyShape(animal, pose);
+    const anchors = animalAnchors(animal, pose);
+    const order = { neck: 0, face: 1, head: 2 };
+    const list = gear.slice().sort((a, b) => (order[GEAR[a.type]?.slot] ?? 3) - (order[GEAR[b.type]?.slot] ?? 3));
+    return bodyShape(animal, pose) + list.map(g => gearSvg(g, anchors, animal.kind === 'custom')).join('');
 }
 
 export function animalIcon(animal, { size = 80, pose = 'sit' } = {}) {
@@ -177,7 +220,12 @@ function bubble(x, y, text) {
 }
 
 // 房间里的那一层：先画植物，再画动物（站在最前面）
-export function petsLayer(home, roomId, { t = Date.now(), selectedId = '' } = {}) {
+function hearts(x, y) {
+    const heart = (dx, dy, s, d) => `<path class="mxj-heart" style="animation-delay:${d}s" d="M${x + dx} ${y + dy + 2.4 * s}c${-1.6 * s} ${-1.4 * s} ${-3.4 * s} ${-2.6 * s} ${-3.4 * s} ${-4.2 * s}c0 ${-1.2 * s} ${0.9 * s} ${-2 * s} ${1.9 * s} ${-2 * s}c${0.7 * s} 0 ${1.2 * s} ${0.4 * s} ${1.5 * s} ${0.9 * s}c${0.3 * s} ${-0.5 * s} ${0.8 * s} ${-0.9 * s} ${1.5 * s} ${-0.9 * s}c${1 * s} 0 ${1.9 * s} ${0.8 * s} ${1.9 * s} ${2 * s}c0 ${1.6 * s} ${-1.8 * s} ${2.8 * s} ${-3.4 * s} ${4.2 * s}z" fill="#E86A86"/>`;
+    return `<g pointer-events="none">${heart(-8, -2, 2.6, 0)}${heart(8, -10, 2, 0.6)}${heart(-2, -20, 1.6, 1.2)}</g>`;
+}
+
+export function petsLayer(home, roomId, { t = Date.now(), selectedId = '', patting = '', xOverride = {} } = {}) {
     const pets = home?.pets;
     if (!pets) return '';
     const rooms = home.house?.rooms || [];
@@ -191,11 +239,14 @@ export function petsLayer(home, roomId, { t = Date.now(), selectedId = '' } = {}
     }
     for (const a of (pets.animals || [])) {
         if (animalRoom(a, rooms, t) !== roomId) continue;
-        const { pose, x: px } = animalPose(a, t);
+        const pat = a.id === patting;
+        const { pose: pose0, x: px0 } = animalPose(a, t);
+        const pose = pat ? 'sit' : pose0;
+        const px = xOverride[a.id] ?? px0;
         const st = animalStatus(a, t);
         const x = px / 100 * SCENE_W;
         const sc = a.kind === 'custom' ? 0.78 : 0.7, base = SCENE_H - 3;
-        svg += `<g class="mxj-pet${a.id === selectedId ? ' mxj-selected' : ''}" data-act="pet" data-id="${esc(a.id)}" role="button" tabindex="0" aria-label="${esc(`${a.name}（${animalLabel(a)}）`)}"><g transform="translate(${(x - 40 * sc).toFixed(1)} ${(base - 62 * sc).toFixed(1)}) scale(${sc})"><g class="mxj-pet-body is-${pose}">${animalShape(a, pose)}</g></g>${bubble(x, base - (pose === 'sleep' ? 32 : 46) * sc, st.bubble)}</g>`;
+        svg += `<g class="mxj-pet${a.id === selectedId ? ' mxj-selected' : ''}" data-act="pet" data-id="${esc(a.id)}" role="button" tabindex="0" aria-label="${esc(`${a.name}（${animalLabel(a)}）`)}"><g transform="translate(${(x - 40 * sc).toFixed(1)} ${(base - 62 * sc).toFixed(1)}) scale(${sc})"><g class="mxj-pet-body is-${pose}">${animalShape(a, pose)}</g></g>${pat ? hearts(x, base - 50 * sc) : bubble(x, base - (pose === 'sleep' ? 32 : 46) * sc, st.bubble)}</g>`;
     }
     return svg;
 }

@@ -1,12 +1,12 @@
 // 梦想家 · 布置：改动记录、「他挑的」、他帮忙摆、按描述做家具
-import { homeTheme, themeName } from './theme.js?mxj=0.7.1';
-import { now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.7.1';
-import { generate } from './api.js?mxj=0.7.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.7.1';
-import { getHome, setHome } from './settings.js?mxj=0.7.1';
-import { CATALOG, CATALOG_PROMPT, SCENE_W, effectiveRow } from './furniture.js?mxj=0.7.1';
-import { SUGGEST_SYSTEM, DESCRIBE_SYSTEM, ARRANGE_SYSTEM } from './home-prompts.js?mxj=0.7.1';
-import { liveHome, houseSummary } from './home-shared.js?mxj=0.7.1';
+import { homeTheme, themeName } from './theme.js?mxj=0.8.0';
+import { now, parseJsonLoose, asText, hexOr, clip } from './util.js?mxj=0.8.0';
+import { generate } from './api.js?mxj=0.8.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
+import { getHome, setHome } from './settings.js?mxj=0.8.0';
+import { CATALOG, CATALOG_PROMPT, SCENE_W, effectiveRow } from './furniture.js?mxj=0.8.0';
+import { SUGGEST_SYSTEM, DESCRIBE_SYSTEM, ARRANGE_SYSTEM } from './home-prompts.js?mxj=0.8.0';
+import { liveHome, houseSummary } from './home-shared.js?mxj=0.8.0';
 
 export function pendingChanges(home) {
     const seen = Number(home?.changesSeenAt) || 0;

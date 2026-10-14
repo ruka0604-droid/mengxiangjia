@@ -69,8 +69,8 @@ EOF
 | `src/view-build.js` | 盖房子 / 房子档案 |
 | `src/pets-data.js` | 小家伙们的数据和规则（只算不存）：毛色、六种植物和生长阶段、`animalStatus`（饱腹/喝水 5 格、今天做过的照顾、头上的气泡）、`animalRoom`（每一个半小时随机换房间）、`plantStatus`（干蔫 / 浇太多）、`todayTasks`、捣蛋事件池 |
 | `src/home-pets.js` | 小家伙们的存档操作和生成：领养、种植、照顾、抱到别的房间；植物长到新阶段时 `writeStageNote`；照描述画一只 `drawCustomPet`；回家那次调用里的 `petVisitBlock` / `applyPetVisit` |
-| `src/pet-art.js` | 猫、狗（坐 / 睡两种姿势）和六种植物各阶段的 SVG，`petsLayer` 画进房间最前面一层 |
-| `src/view-pets.js` | 小家伙们、领养、种一盆、成长记录四页，和小屋里点中它时的卡片（登记成 `petcard` 视图，首页用 `app.renderView('petcard', …)` 拿） |
+| `src/pet-art.js` | 猫、狗（坐 / 睡两种姿势）和六种植物各阶段的 SVG，装扮按 `animalAnchors` 的位置画在身上；`petsLayer` 画进房间最前面一层，摸它时冒爱心 |
+| `src/view-pets.js` | 小家伙们、领养、种一盆、成长记录、换装扮（画的宠物可以拖「脖子」「头顶」圆点）五页，和小屋里点中它时的卡片（登记成 `petcard` 视图，首页用 `app.renderView('petcard', …)` 拿） |
 | `src/view-notes.js`、`src/view-diary.js`、`src/view-look.js`、`src/view-art.js`、`src/view-settings.js` | 小纸条、交换日记、他的样子、画出我们的家、设置。设置按原来从上到下的顺序分组折叠（`state.settingsOpen`）：小屋浮窗（开关）/ 文字生成 / 生成时读取 / 他什么时候回家 / 生图连接 / 更新日志，最下面拆家；收起时显示一行摘要。别处要直达并展开某组，按钮写 `data-act="settings" data-group="image"`。设置里的文字框不要在 change 时整页重画（手机上会把刚点中的下一个输入框弄丢），Key、模型这类边打边存 |
 | `src/util.js` | 小工具，含宽松 JSON 解析 `parseJsonLoose` |
 | `style.css` | 全部样式限定在 `#mxj-root` 内；已经抵消了酒馆全局对 button/input/select/checkbox 的主题样式 |
@@ -90,7 +90,7 @@ EOF
 - `look`：像素小人形象 `{hairStyle, hair, skin, eyes, outfit, accent, pants, shoes, accessory}`；没有时按名字给默认样子
 - `artByTheme`：中途换风格时收起来的图，`{风格: {portrait, rooms:{房间id:{art,useArt}}, furniture:{家具id:art}}}`。当前风格的图仍在 `home.art`、`room.art`、`furniture.art` 上；换风格只能用 `home-house.js` 的 `switchTheme()`，不要直接改 `home.theme`，否则新旧画风的图会混在一起
 - `diary`：`{mode:'visit'|'daily'|'manual', entries[{author, date, weather, text, quote, stamp}], readAt}`。mode 为 visit 时，他的日记并在回家那次调用里一起生成
-- `pets`：`{animals[], plants[], events[], eventsSeenAt}`。动物 `{id, kind:'cat'|'dog'|'custom', coat, name, gender, room, placedAt, adoptedAt, fedAt, waterAt, walkedAt, walkedBy, mischief{text,at,room}, mischiefLog}`，custom 另有 `habit, species, desc, art{path}`；植物 `{id, kind, name, room, x, plantedAt, waters[], fertAt, points, stage, stageAt{}, stageNotes{阶段:纸条id}, troubleSeen}`；`events` 是照顾记录，回家时给模型看。和小家伙有关的纸条带 `about{id, name, type, tag, stage?}`。动物在哪个房间、什么姿势都按时间算出来，不存
+- `pets`：`{animals[], plants[], events[], eventsSeenAt}`。动物 `{id, kind:'cat'|'dog'|'custom', coat, name, gender, room, placedAt, adoptedAt, fedAt, waterAt, walkedAt, walkedBy, mischief{text,at,room}, mischiefLog}`，`gear[{type, color, item, by:'char'|'user', at}]`（每个位置一件，种类见 `pets-data.js` 的 `GEAR`），custom 另有 `habit, species, desc, art{path}, anchors{ar, neck{x,y,w}, head{x,y}, manual}`（脖子和头顶在图上的位置，0–1）；植物 `{id, kind, name, room, x, plantedAt, waters[], fertAt, points, stage, stageAt{}, stageNotes{阶段:纸条id}, troubleSeen}`；`events` 是照顾记录，回家时给模型看。`presence.petting{pet, until}`：叫他来摸摸它之后的半小时，他在那只旁边（下次回家清掉）。和小家伙有关的纸条带 `about{id, name, type, tag, stage?}`。动物在哪个房间、什么姿势都按时间算出来，不存
 
 房间 `arranged` 为真后完全按用户摆的位置画；否则自动排开防重叠。
 
@@ -122,7 +122,7 @@ EOF
 
 ## 调用次数
 
-每个动作一次调用：盖房子（含像素小人外形）、回家（含纸条回信、他留的纸条、轮到他时的日记）、每次回应、纸条马上回、他挑的、他帮忙摆、描述做家具、重新生成形象、叫他写日记。生图：准备一张图的描述一次文字调用；「没画的家具一起画」整间房的描述合成一次文字调用，然后每件一张图。小家伙们：照顾本身不调用；植物长到新阶段一次调用（他留纸条）；照描述画宠物一次文字调用 + 一张图，「再画一张」只花一张图；捣蛋、蔫了、淋雨、日常的宠物纸条都并在回家那一次里（`petNotes`）。打开小屋本身不调用；只有到了回家时间才会触发回家那一次。
+每个动作一次调用：盖房子（含像素小人外形）、回家（含纸条回信、他留的纸条、轮到他时的日记）、每次回应、纸条马上回、他挑的、他帮忙摆、描述做家具、重新生成形象、叫他写日记。生图：准备一张图的描述一次文字调用；「没画的家具一起画」整间房的描述合成一次文字调用，然后每件一张图。小家伙们：照顾本身不调用；植物长到新阶段一次调用（他留纸条）；照描述画宠物一次文字调用 + 一张图，「再画一张」只花一张图；捣蛋、蔫了、淋雨、日常的宠物纸条都并在回家那一次里（`petNotes`）。他给小家伙戴的装扮（`petGear`）并在回家、回应、写日记那一次里；「叫他来摸摸它」走回应他，一次调用。打开小屋本身不调用；只有到了回家时间才会触发回家那一次。
 
 ## 测试
 

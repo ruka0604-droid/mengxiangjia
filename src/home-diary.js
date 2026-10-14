@@ -1,10 +1,11 @@
 // 梦想家 · 交换日记
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.7.1';
-import { generate } from './api.js?mxj=0.7.1';
-import { gatherContext, contextBlock } from './character.js?mxj=0.7.1';
-import { getHome, setHome } from './settings.js?mxj=0.7.1';
-import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.7.1';
-import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.7.1';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.8.0';
+import { generate } from './api.js?mxj=0.8.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.8.0';
+import { getHome, setHome } from './settings.js?mxj=0.8.0';
+import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.8.0';
+import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.8.0';
+import { petsBrief, applyGear, withPetGear, PET_GEAR_RULE } from './home-pets.js?mxj=0.8.0';
 
 export const WEATHERS = ['晴', '多云', '阴', '小雨', '大雨', '雪', '雾', '起风'];
 export const DIARY_MODES = [
@@ -102,6 +103,7 @@ export async function writeCharDiary(char, { signal } = {}) {
     const home = getHome(char);
     if (!home) throw new Error('还没有家');
     const info = await gatherContext(char);
+    const brief = petsBrief(home);
     const user = `${contextBlock(info)}
 
 # 你们的家
@@ -118,14 +120,15 @@ ${diaryContext(home, 6) || '（本子还是空的）'}
 
 # 现在
 ${nowLine()}，轮到你写了。
-
+${brief ? `\n# 家里的小动物\n${brief}\n${PET_GEAR_RULE}\n` : ''}
 # 输出格式
-${DIARY_FORMAT}`;
+${brief ? withPetGear(DIARY_FORMAT) : DIARY_FORMAT}`;
     const raw = await generate({ system: DIARY_SYSTEM, user, signal, maxTokens: 2000 });
     const parsed = parseJsonLoose(raw);
     const fresh = getHome(char);
     if (!fresh) throw new Error('这个家已经不在了，这次生成的内容没有保存。');
     const entry = applyCharDiary(fresh, parsed?.diary || parsed, parsed ? '' : raw);
+    if (entry && brief && parsed?.petGear) applyGear(fresh, parsed.petGear, 'char', char?.name || '他');
     setHome(char, fresh);
     if (!entry) throw new Error('他这次没写出来，可以再叫他写一次。');
     return entry;

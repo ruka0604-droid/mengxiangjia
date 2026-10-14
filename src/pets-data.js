@@ -204,3 +204,70 @@ export function pickMischief(animal, rnd = Math.random) {
 }
 
 export const TIME = { HOUR, DAY, SLOT };
+
+// ---------------- 装扮 ----------------
+// slot：neck 脖子 / head 头顶 / face 脸上。同一个位置只戴一件，戴新的就换下旧的
+export const GEAR = {
+    collar: { label: '项圈', slot: 'neck', color: '#C2452D' },
+    bell: { label: '铃铛', slot: 'neck', color: '#C2452D' },
+    knot: { label: '平安结', slot: 'neck', color: '#C2452D' },
+    bowtie: { label: '领结', slot: 'neck', color: '#2F5D4E' },
+    scarf: { label: '小围巾', slot: 'neck', color: '#B2584A' },
+    bow: { label: '蝴蝶结', slot: 'head', color: '#E8A0A8' },
+    hat: { label: '小帽子', slot: 'head', color: '#5C8FD0' },
+    flower: { label: '小花', slot: 'head', color: '#F2C46B' },
+    glasses: { label: '小眼镜', slot: 'face', color: '#3A3A3A', templateOnly: true },
+};
+export const GEAR_COLORS = ['#C2452D', '#E8A0A8', '#F2C46B', '#2F5D4E', '#5C8FD0', '#7A5638', '#2A2A2A', '#F4F1EA'];
+// 模型写的是「红绳平安结」「小铃铛」这样的话，按关键词认成能画出来的那一种
+const GEAR_HINTS = [
+    ['glasses', /眼镜|墨镜/], ['bowtie', /领结/], ['bow', /蝴蝶结|发带|头花|发夹/], ['knot', /平安结|中国结|绳结|红绳|编绳/],
+    ['bell', /铃/], ['collar', /项圈|颈圈|脖套|狗牌|名牌/], ['scarf', /围巾|围脖|领巾|方巾|披肩/], ['hat', /帽/], ['flower', /花/],
+];
+export function gearTypeOf(text, type = '') {
+    if (GEAR[type]) return type;
+    const s = String(text || '');
+    return GEAR_HINTS.find(([, re]) => re.test(s))?.[0] || '';
+}
+export function gearSummary(animal) {
+    return (animal?.gear || []).map(g => g.item || GEAR[g.type]?.label).filter(Boolean).join('、');
+}
+
+// 模板猫狗戴东西的位置（80×64 的本地坐标）。rot：睡着时脖子是斜的
+const TEMPLATE_ANCHORS = {
+    cat: {
+        sit: { neck: { x: 40, y: 38.5, w: 19 }, head: { x: 40, y: 12 }, face: { x: 40, y: 26 } },
+        sleep: { neck: { x: 35, y: 45, w: 13, rot: -40 }, head: { x: 26, y: 22 }, face: { x: 26, y: 37 } },
+    },
+    dog: {
+        sit: { neck: { x: 40, y: 38, w: 19 }, head: { x: 40, y: 11 }, face: { x: 40, y: 23 } },
+        sleep: { neck: { x: 33, y: 50, w: 11, rot: -55 }, head: { x: 24, y: 34 }, face: { x: 24, y: 45 } },
+    },
+};
+// 画出来的宠物：位置是按图片比例存的（0–1），换算成本地坐标。图片画在 (6,2) 起 68×60 的框里，底部对齐
+export function animalAnchors(animal, pose = 'sit') {
+    if (animal?.kind !== 'custom') return TEMPLATE_ANCHORS[habitOf(animal)][pose === 'sleep' ? 'sleep' : 'sit'];
+    const a = animal.anchors || {};
+    const ar = Number(a.ar) || 1;
+    const box = ar > 68 / 60 ? { w: 68, h: 68 / ar } : { w: 60 * ar, h: 60 };
+    box.x = 6 + (68 - box.w) / 2;
+    box.y = 2 + 60 - box.h;
+    const to = (p, dx, dy) => ({ x: box.x + (Number(p?.x ?? dx)) * box.w, y: box.y + (Number(p?.y ?? dy)) * box.h });
+    const neck = to(a.neck, 0.5, 0.48);
+    return { neck: { ...neck, w: Math.max(8, Math.min(40, (Number(a.neck?.w) || 0.3) * box.w)) }, head: to(a.head, 0.5, 0.06), box };
+}
+
+// 他在摸哪一只：叫他来摸的那半小时里是那一只；平时他在家、没坐在哪件家具旁边时，偶尔自己去逗一只
+export function pettingNow(home, t = Date.now(), { away = false } = {}) {
+    const animals = home?.pets?.animals || [];
+    if (!animals.length || away || home.presence?.atHome === false) return null;
+    const p = home.presence?.petting;
+    if (p && p.until > t) {
+        const a = animals.find(x => x.id === p.pet);
+        if (a) return { id: a.id, asked: true };
+    }
+    if (home.presence?.spot) return null;
+    const slot = Math.floor(t / SLOT);
+    if (hash(`pat:${slot}`) % 3) return null;
+    return { id: animals[hash(`patwho:${slot}`) % animals.length].id, asked: false };
+}
