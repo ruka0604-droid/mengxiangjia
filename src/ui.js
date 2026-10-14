@@ -1,20 +1,21 @@
 // 梦想家 · 界面核心：面板的打开关闭、确认框、渲染、忙碌条、事件分发
 // 每一页的内容和按钮在 view-*.js 里；这里只负责把它们接起来。
-import { refreshFloating } from './floating.js?mxj=0.6.12';
-import { homeTheme } from './theme.js?mxj=0.6.12';
-import { esc, LOG_PREFIX } from './util.js?mxj=0.6.12';
-import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.6.12';
-import { characterView } from './character.js?mxj=0.6.12';
-import { shouldAutoVisit } from './home-visit.js?mxj=0.6.12';
-import { createDecorator } from './decorate.js?mxj=0.6.12';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.12';
-import { setup as setupHome } from './view-home.js?mxj=0.6.12';
-import { setup as setupBuild } from './view-build.js?mxj=0.6.12';
-import { setup as setupNotes } from './view-notes.js?mxj=0.6.12';
-import { setup as setupDiary } from './view-diary.js?mxj=0.6.12';
-import { setup as setupLook } from './view-look.js?mxj=0.6.12';
-import { setup as setupArt } from './view-art.js?mxj=0.6.12';
-import { setup as setupSettings } from './view-settings.js?mxj=0.6.12';
+import { refreshFloating } from './floating.js?mxj=0.7.0';
+import { homeTheme } from './theme.js?mxj=0.7.0';
+import { esc, LOG_PREFIX } from './util.js?mxj=0.7.0';
+import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.7.0';
+import { characterView } from './character.js?mxj=0.7.0';
+import { shouldAutoVisit } from './home-visit.js?mxj=0.7.0';
+import { createDecorator } from './decorate.js?mxj=0.7.0';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.0';
+import { setup as setupHome } from './view-home.js?mxj=0.7.0';
+import { setup as setupBuild } from './view-build.js?mxj=0.7.0';
+import { setup as setupNotes } from './view-notes.js?mxj=0.7.0';
+import { setup as setupDiary } from './view-diary.js?mxj=0.7.0';
+import { setup as setupLook } from './view-look.js?mxj=0.7.0';
+import { setup as setupArt } from './view-art.js?mxj=0.7.0';
+import { setup as setupSettings } from './view-settings.js?mxj=0.7.0';
+import { setup as setupPets } from './view-pets.js?mxj=0.7.0';
 
 const ROOT_ID = 'mxj-root';
 
@@ -40,6 +41,9 @@ const state = {
     diaryAll: false,
     artDraft: null,
     artBatch: null,
+    selectedPet: '',
+    pets: null,
+    noteFilter: 'all',
 };
 
 let root = null;
@@ -66,7 +70,7 @@ const app = {
 
 const homePage = setupHome(app);
 const settingsPage = setupSettings(app);
-const pages = [homePage, setupBuild(app), setupNotes(app), setupDiary(app), setupLook(app), setupArt(app), settingsPage];
+const pages = [homePage, setupBuild(app), setupNotes(app), setupDiary(app), setupLook(app), setupArt(app), setupPets(app), settingsPage];
 
 function merge(key, base = {}) {
     const out = { ...base };
@@ -85,6 +89,8 @@ const titleOf = merge('titles', {
     decorate: (char, home) => ['布置', home?.house?.name || ''],
 });
 const enterHooks = merge('enter');
+// 子页面的返回键回到上一层（比如领养页回小家伙们）
+const parentOf = merge('parents');
 const afterHooks = merge('after');
 const fieldHandlers = merge('fields', {
     decoName(value) {
@@ -105,6 +111,7 @@ const actions = merge('actions', {
     close() { close(); },
     back(el, char) {
         if (state.view === 'decorate') decorator.leave();
+        else if (parentOf[state.view] && char && getHome(char)?.house) go(parentOf[state.view]);
         else go(char && getHome(char)?.house ? 'home' : 'build');
     },
     decorate(el, char) {
@@ -197,6 +204,7 @@ export function open() {
     if (state.artDraft && state.artDraft.owner !== characterKey(char)) state.artDraft = null;
     if (state.artBatch && state.artBatch.owner !== characterKey(char)) state.artBatch = null;
     state.selectedFurniture = '';
+    state.selectedPet = '';
     state.view = !char ? 'nochar' : (home?.house ? 'home' : 'build');
     state.draft = { theme: homeTheme(home), size: 'flat', extra: '', emptyWall: true, proposal: null };
     root.hidden = false;
@@ -340,7 +348,9 @@ function go(view) {
     state.view = view;
     state.error = '';
     state.selectedFurniture = '';
-    enterHooks[view]?.();
+    state.selectedPet = '';
+    const c = currentCharacter();
+    enterHooks[view]?.(c, c ? getHome(c) : null);
     render();
     root.querySelector('.mxj-main').scrollTop = 0;
 }
@@ -381,7 +391,7 @@ function flash(text) {
 }
 
 function onKeydown(event) {
-    const g = event.target?.closest?.('g[data-act="furniture"]');
+    const g = event.target?.closest?.('g[role="button"][data-act]');
     if (g && (event.key === 'Enter' || event.key === ' ')) {
         event.preventDefault();
         g.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -438,6 +448,8 @@ export function onChatChanged() {
     state.abort?.abort();
     state.artDraft = null;
     state.artBatch = null;
+    state.selectedPet = '';
+    state.pets = null;
     state.draft = { theme: 'pixel', size: 'flat', extra: '', emptyWall: true, proposal: null };
     state.newLayout = '';
     const char = currentCharacter();

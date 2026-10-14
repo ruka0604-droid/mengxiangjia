@@ -1,16 +1,18 @@
 // 梦想家 · 界面 · 小屋首页（房间、他在做什么、扩建与搬家）和回家记录
-import { moodFace, homeTheme } from './theme.js?mxj=0.6.12';
-import { esc, formatTime, daysSince } from './util.js?mxj=0.6.12';
-import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.6.12';
-import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.6.12';
-import { characterView, avatarUrl } from './character.js?mxj=0.6.12';
-import { spriteInRoom, poseFor } from './sprite.js?mxj=0.6.12';
-import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.6.12';
-import { getLook } from './home-house.js?mxj=0.6.12';
-import { comeHome, respond, isAway } from './home-visit.js?mxj=0.6.12';
-import { unreadFromChar } from './home-notes.js?mxj=0.6.12';
-import { unreadDiary } from './home-diary.js?mxj=0.6.12';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.6.12';
+import { moodFace, homeTheme } from './theme.js?mxj=0.7.0';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.7.0';
+import { getSettings, currentCharacter, characterKey, getHome, setHome } from './settings.js?mxj=0.7.0';
+import { renderRoom, SCENE_H, CATALOG } from './furniture.js?mxj=0.7.0';
+import { characterView, avatarUrl } from './character.js?mxj=0.7.0';
+import { spriteInRoom, poseFor } from './sprite.js?mxj=0.7.0';
+import { HOUSE_SIZES, ROOM_MODULES, roomModulesFromText, addRoomModules, removeRoomModule, upgradeHouse } from './home-rooms.js?mxj=0.7.0';
+import { getLook } from './home-house.js?mxj=0.7.0';
+import { comeHome, respond, isAway } from './home-visit.js?mxj=0.7.0';
+import { unreadFromChar } from './home-notes.js?mxj=0.7.0';
+import { unreadDiary } from './home-diary.js?mxj=0.7.0';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.7.0';
+import { petsLayer } from './pet-art.js?mxj=0.7.0';
+import { animalStatus, plantStatus, animalRoom } from './pets-data.js?mxj=0.7.0';
 
 let app = null;
 let state = null;
@@ -33,6 +35,7 @@ export function setup(a) {
                 const home = getHome(char);
                 home.currentRoom = el.dataset.id;
                 state.selectedFurniture = '';
+                state.selectedPet = '';
                 setHome(char, home);
                 state.keepScroll = true;
                 render();
@@ -45,6 +48,7 @@ export function setup(a) {
                     return;
                 }
                 state.selectedFurniture = state.selectedFurniture === el.dataset.id ? '' : el.dataset.id;
+                state.selectedPet = '';
                 state.keepScroll = true;
                 render();
             },
@@ -149,15 +153,21 @@ function viewHome(char, home) {
     const figure = showFigure && !home.art?.path
         ? (anchors) => spriteInRoom(look, pose, spotItem ? anchors[spotItem.id] : null, SCENE_H, { theme: homeTheme(home), mood: home.presence?.mood, label: `${characterView(char).name}（点一下看他的样子）` })
         : null;
-    const { svg } = renderRoom(room, furniture, house.palette, { night, selectedId: state.selectedFurniture, figure });
+    // 小家伙们画在最前面一层
+    const petSvg = petsLayer(home, roomId, { selectedId: state.selectedPet });
+    const { svg } = renderRoom(room, furniture, house.palette, { night, selectedId: state.selectedFurniture, figure: anchors => (figure ? figure(anchors) : '') + petSvg });
     const away = isAway(home) && !state.busy;
     const presence = home.presence || {};
     const name = characterView(char).name;
     const unread = unreadFromChar(home);
     const diaryBadge = unreadDiary(home);
 
+    // 房间页签上的小点：这间房里有小家伙
+    const pets = home.pets || {};
+    const petRooms = new Set([...(pets.animals || []).map(a => animalRoom(a, house.rooms)), ...(pets.plants || []).map(p => p.room)]);
+    const petNeeds = (pets.animals || []).filter(a => animalStatus(a).bubble).length + (pets.plants || []).filter(p => plantStatus(p).trouble).length;
     const tabs = house.rooms.length > 1
-        ? `<div class="mxj-chips" role="tablist">${house.rooms.map(r => `<button type="button" role="tab" aria-selected="${r.id === roomId}" class="mxj-chip${r.id === roomId ? ' is-on' : ''}" data-act="room" data-id="${esc(r.id)}">${esc(r.name)}</button>`).join('')}</div>`
+        ? `<div class="mxj-chips" role="tablist">${house.rooms.map(r => `<button type="button" role="tab" aria-selected="${r.id === roomId}" class="mxj-chip${r.id === roomId ? ' is-on' : ''}" data-act="room" data-id="${esc(r.id)}">${esc(r.name)}${petRooms.has(r.id) ? '<i class="mxj-pet-dot" aria-label="有小家伙"></i>' : ''}</button>`).join('')}</div>`
         : '';
 
     const statusLine = away
@@ -171,7 +181,7 @@ function viewHome(char, home) {
       <div class="mxj-scene">
         ${svg}${portrait}
         ${unread ? `<button type="button" class="mxj-badge-btn" data-act="go" data-view="notes">${ICON.mail}<span>${unread} 张新纸条</span></button>` : ''}
-        <div class="mxj-scene-hint">点家具可以互动</div>
+        <div class="mxj-scene-hint">${petSvg ? '点家具或小家伙可以互动' : '点家具可以互动'}</div>
       </div>
       <div class="mxj-row"><button type="button" class="mxj-btn mxj-grow" data-act="go" data-view="art">绘制人物、房间与家具</button></div>
       ${getSettings().visitMode === 'manual' && !away ? '<p class="mxj-muted">当前为手动回家模式；他已在家。下次离家后可点击「等他回家」。</p>' : ''}
@@ -185,11 +195,12 @@ function viewHome(char, home) {
         <button type="button" class="mxj-btn" data-act="add-room-text">按描述添加房间</button>
       </details>
       ${home.v >= 2 && !room.art?.path ? '<p class="mxj-muted">当前为布局草图。到绘制页生成并保存房间背景和家具，房间里就会换成所选画风的图片。</p>' : ''}
-      ${state.selectedFurniture ? furnitureCard(home, away) : eventCard(char, home, away)}
+      ${state.selectedPet ? app.renderView('petcard', char, home) || eventCard(char, home, away) : state.selectedFurniture ? furnitureCard(home, away) : eventCard(char, home, away)}
       <nav class="mxj-entries" aria-label="小屋功能">
         <button type="button" class="mxj-entry" data-act="decorate">${ICON.sofa}<span>布置</span></button>
         <button type="button" class="mxj-entry" data-act="go" data-view="notes">${ICON.note}<span>小纸条</span>${unread ? `<i class="mxj-badge">${unread}</i>` : ''}</button>
         <button type="button" class="mxj-entry" data-act="go" data-view="diary">${ICON.diary}<span>交换日记</span>${diaryBadge ? `<i class="mxj-badge">${diaryBadge}</i>` : ''}</button>
+        <button type="button" class="mxj-entry" data-act="go" data-view="pets">${ICON.paw}<span>小家伙们</span>${petNeeds ? `<i class="mxj-badge">${petNeeds}</i>` : ''}</button>
         <button type="button" class="mxj-entry" data-act="go" data-view="log">${ICON.log}<span>回家记录</span></button>
         <button type="button" class="mxj-entry" data-act="go" data-view="build">${ICON.house}<span>房子档案</span></button>
       </nav>`;

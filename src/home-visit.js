@@ -1,13 +1,14 @@
 // 梦想家 · 他回家、回应他、什么时候回家
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.6.12';
-import { generate } from './api.js?mxj=0.6.12';
-import { gatherContext, contextBlock } from './character.js?mxj=0.6.12';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.6.12';
-import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.6.12';
-import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.6.12';
-import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.6.12';
-import { pendingChanges } from './home-decor.js?mxj=0.6.12';
-import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.6.12';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.7.0';
+import { generate } from './api.js?mxj=0.7.0';
+import { gatherContext, contextBlock } from './character.js?mxj=0.7.0';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.7.0';
+import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.7.0';
+import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.7.0';
+import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.7.0';
+import { pendingChanges } from './home-decor.js?mxj=0.7.0';
+import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.7.0';
+import { petVisitBlock, applyPetVisit, PET_NOTES_FORMAT } from './home-pets.js?mxj=0.7.0';
 
 // ---------------- 他回家 ----------------
 
@@ -40,6 +41,8 @@ export async function comeHome(char, { signal } = {}) {
     const changeCutoff = changes.reduce((m, c) => Math.max(m, Number(c.at) || 0), 0);
     const diaryDue = getDiary(home).mode !== 'manual' && (charTurn(home) || (freshStory && newEvents.some(e=>/纪念日|旅行|约会/.test(e.kind))) || changes.some(e=>/搬家|住宅从/.test(e.text)));
     const story = (info.recent || '').slice(-5000);
+    // 小家伙们的近况和要写的宠物纸条并在这一次调用里，不另外调用
+    const pets = petVisitBlock(home);
     const user = `${contextBlock(info)}
 
 # 你们的家
@@ -61,7 +64,7 @@ ${changes.map(c=>c.text).join('；')||'无'}
 # 现在
 ${nowLine()}，${info.char.name}回到家。
 ${unread.length ? `用户留了 ${unread.length} 张他还没看到的纸条，他回家会看到并回信：\n${unread.map(n => `- id=${n.id}｜${n.kind}｜贴在${n.place}｜${n.text}`).join('\n')}` : '没有未读的纸条。'}
-${diaryDue ? `\n# 交换日记\n书桌上的交换日记轮到他写了。他看过你写的那一篇，回家后会接着写一篇。\n${diaryContext(home)}\n` : ''}
+${diaryDue ? `\n# 交换日记\n书桌上的交换日记轮到他写了。他看过你写的那一篇，回家后会接着写一篇。\n${diaryContext(home)}\n` : ''}${pets.text ? `\n${pets.text}\n` : ''}
 # 输出格式
 {
   "activity": "他现在在做什么（8 字以内，如：窗边看书）",
@@ -70,13 +73,14 @@ ${diaryDue ? `\n# 交换日记\n书桌上的交换日记轮到他写了。他看
   "event": "他回家后的一个小场景，1 到 3 句",
   "options": ["你可以做的一件小事", "另一件"],
   "replies": [ { "to": "纸条 id", "text": "他的回信" } ],
-  "note": null
+  "note": null${pets.text ? `,
+  ${PET_NOTES_FORMAT}` : ''}
 }
 如果存在待回应装修变化，必须用 note 写一张反映这些变化的小纸条；若本次有新识别的正文事件，也可以结合写在纸条里。若没有新变化则可不写。不要把冲突自动写成和好。把 note 写成 { "kind": "${NOTE_KINDS.join('/')} 之一", "place": "${NOTE_PLACES.join('/')} 之一", "text": "纸条内容" }；不想留就是 null。${diaryDue ? `
 另外加一个字段 "diary": ${DIARY_FORMAT}` : ''}`;
     const raw = await generate({ system: VISIT_SYSTEM, user, signal });
     const parsed = parseJsonLoose(raw);
-    const visit = applyVisit(char, parsed, raw, unread, {fingerprint:freshStory?fingerprint:'', eventKeys:newEvents.map(e=>storyFingerprint([e])), hasChanges:changes.length>0, changeCutoff, diaryDue});
+    const visit = applyVisit(char, parsed, raw, unread, {fingerprint:freshStory?fingerprint:'', eventKeys:newEvents.map(e=>storyFingerprint([e])), hasChanges:changes.length>0, changeCutoff, diaryDue, pets: pets.meta});
     return visit;
 }
 
@@ -156,6 +160,7 @@ function applyVisit(char, parsed, raw, unread, meta = {}) {
             });
         }
     }
+    applyPetVisit(home, p.petNotes, meta.pets, visit.at);
     setHome(char, home);
     return visit;
 }

@@ -1,8 +1,8 @@
 // 梦想家 · 房子大小、房间种类、加减房间和搬家
-import { uid, now } from './util.js?mxj=0.6.12';
-import { getHome, setHome } from './settings.js?mxj=0.6.12';
-import { CATALOG } from './furniture.js?mxj=0.6.12';
-import { recordChanges } from './home-decor.js?mxj=0.6.12';
+import { uid, now } from './util.js?mxj=0.7.0';
+import { getHome, setHome } from './settings.js?mxj=0.7.0';
+import { CATALOG } from './furniture.js?mxj=0.7.0';
+import { recordChanges } from './home-decor.js?mxj=0.7.0';
 
 export const HOUSE_SIZES = [
     { id: 'studio', name: '一间小屋', sub: '开间', rooms: '1 个房间', maxRooms: 4 },
@@ -127,6 +127,9 @@ export function removeRoomModule(char,roomId) {
     home.house.storage.push(...furniture.map(({room:_room,x:_x,z:_z,...rest})=>({...rest,previousRoom:roomId})));
     home.house.rooms=home.house.rooms.filter(r=>r.id!==roomId);
     if(home.currentRoom===roomId)home.currentRoom=home.house.rooms[0].id;
+    // 这间房里的小家伙们搬到第一间房
+    for(const p of home.pets?.plants||[]) if(p.room===roomId) p.room=home.house.rooms[0].id;
+    for(const a of home.pets?.animals||[]) if(a.room===roomId) a.room=home.house.rooms[0].id;
     home.changes||=[];home.changes.push({at:now(),text:`移除${room.name}模块，${furniture.length}件家具转入仓库`});
     setHome(char,home);return furniture.length;
 }

@@ -1,8 +1,8 @@
 // 梦想家 · 界面 · 小纸条
-import { esc, formatTime } from './util.js?mxj=0.6.12';
-import { characterView } from './character.js?mxj=0.6.12';
-import { NOTE_KINDS, NOTE_PLACES, postNote, replyToNote, writeCharNote, markCharNotesRead } from './home-notes.js?mxj=0.6.12';
-import { viewNoChar } from './ui-common.js?mxj=0.6.12';
+import { esc, formatTime } from './util.js?mxj=0.7.0';
+import { characterView } from './character.js?mxj=0.7.0';
+import { NOTE_KINDS, NOTE_PLACES, postNote, replyToNote, writeCharNote, markCharNotesRead } from './home-notes.js?mxj=0.7.0';
+import { viewNoChar } from './ui-common.js?mxj=0.7.0';
 
 let app = null;
 let state = null;
@@ -24,6 +24,7 @@ export function setup(a) {
             notes(char, home) { if (char && home) markCharNotesRead(char); },
         },
         actions: {
+            'note-filter'(el) { state.noteFilter = el.dataset.id === 'pets' ? 'pets' : 'all'; state.keepScroll = true; render(); },
             kind(el) { state.composer.kind = el.dataset.id; state.keepScroll = true; render(); },
             place(el) { state.composer.place = el.dataset.id; state.keepScroll = true; render(); },
             'reply-note'(el) {
@@ -63,7 +64,7 @@ function noteCard(n, home, name) {
     }
     const tilt = ((n.id.charCodeAt(n.id.length - 1) % 5) - 2) * 0.6;
     return `<article class="mxj-note kind-${NOTE_KINDS.indexOf(n.kind)}${n.from === 'user' ? ' is-mine' : ''}" style="transform:rotate(${tilt}deg)">
-      <div class="mxj-note-meta"><span class="mxj-note-kind">${esc(n.kind)}</span><span>${esc(from)} · ${esc(n.place)} · ${esc(formatTime(n.at))}${isNew ? ' · 新' : ''}</span></div>
+      <div class="mxj-note-meta"><span class="mxj-note-kind">${esc(n.about ? (n.about.name ? `${n.about.name} · ${n.about.tag}` : n.about.tag) : n.kind)}</span><span>${esc(from)} · ${esc(n.place)} · ${esc(formatTime(n.at))}${isNew ? ' · 新' : ''}</span></div>
       ${replyTo}
       <div class="mxj-note-text">${esc(n.text)}</div>
       <div class="mxj-row mxj-between">${status || '<span></span>'}${n.from === 'char' ? `<button type="button" class="mxj-link-btn" data-act="reply-note" data-kind="${esc(n.kind)}">回他一张</button>` : (!n.replyId ? `<button type="button" class="mxj-link-btn" data-act="note-reply" data-id="${esc(n.id)}" ${state.busy ? 'disabled' : ''}>请他现在回</button>` : '')}</div>
@@ -73,11 +74,16 @@ function noteCard(n, home, name) {
 function viewNotes(char, home) {
     if (!home) return viewNoChar();
     const name = characterView(char).name;
-    const notes = (home.notes || []).slice().reverse();
+    const all = (home.notes || []).slice().reverse();
+    // 和小家伙们有关的纸条可以单独看
+    const hasPetNotes = all.some(n => n.about);
+    const filter = hasPetNotes ? state.noteFilter : 'all';
+    const notes = filter === 'pets' ? all.filter(n => n.about) : all;
+    const filters = hasPetNotes ? `<div class="mxj-chips" role="tablist">${[['all', '全部'], ['pets', '小家伙们']].map(([id, label]) => `<button type="button" role="tab" aria-selected="${filter === id}" class="mxj-chip${filter === id ? ' is-on' : ''}" data-act="note-filter" data-id="${id}">${label}</button>`).join('')}</div>` : '';
     const c = state.composer;
     const kinds = NOTE_KINDS.map(k => `<button type="button" class="mxj-chip${c.kind === k ? ' is-on is-red' : ''}" data-act="kind" data-id="${esc(k)}" aria-pressed="${c.kind === k}">${esc(k)}</button>`).join('');
     const places = NOTE_PLACES.map(p => `<button type="button" class="mxj-place${c.place === p ? ' is-on' : ''}" data-act="place" data-id="${esc(p)}" aria-pressed="${c.place === p}">${esc(p)}</button>`).join('');
-    return `
+    return `${filters}
       <section class="mxj-board">
         ${notes.length ? notes.map(n => noteCard(n, home, name)).join('') : '<p class="mxj-board-empty">门边的软木板还空着。</p>'}
       </section>

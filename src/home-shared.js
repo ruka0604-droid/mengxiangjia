@@ -1,6 +1,7 @@
 // 梦想家 · 生成时共用的小工具：确认家还在、给模型看的家的近况
-import { homeTheme, themeName } from './theme.js?mxj=0.6.12';
-import { getHome } from './settings.js?mxj=0.6.12';
+import { homeTheme, themeName } from './theme.js?mxj=0.7.0';
+import { getHome } from './settings.js?mxj=0.7.0';
+import { petsSummary } from './pets-data.js?mxj=0.7.0';
 
 // 生成要等一会儿；等完时这个家可能已经被拆掉了，就不再往里写，给一句看得懂的提示。
 export function liveHome(char) {
@@ -20,6 +21,8 @@ export function houseSummary(home) {
         const items = h.furniture.filter(f => f.room === r.id).map(f => `${f.name}[${f.id}]${f.by === 'user' ? '(用户放的)' : ''}`);
         lines.push(`- ${r.name}：${items.join('、') || '空着'}`);
     }
+    const pets = petsSummary(home);
+    if (pets) lines.push(pets);
     return lines.join('\n');
 }
 
