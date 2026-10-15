@@ -1,11 +1,11 @@
 // 梦想家 · 界面 · 设置（浮窗、文字生成 API、副 API 模型列表、读取范围、回家时机、生图连接、更新日志、拆家）
-import { refreshFloating } from './floating.js?mxj=0.8.2';
-import { imageRequest, fetchImageModels, imageConfigProblems, needsStructured, RECOMMENDED_IMAGE_MODELS } from './imageApi.js?mxj=0.8.2';
-import { esc } from './util.js?mxj=0.8.2';
-import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.8.2';
-import { characterView } from './character.js?mxj=0.8.2';
-import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.8.2';
-import { ICON } from './ui-common.js?mxj=0.8.2';
+import { refreshFloating } from './floating.js?mxj=0.9.0';
+import { imageRequest, fetchImageModels, imageConfigProblems, needsStructured, RECOMMENDED_IMAGE_MODELS } from './imageApi.js?mxj=0.9.0';
+import { esc } from './util.js?mxj=0.9.0';
+import { getSettings, updateSettings, currentCharacter, characterKey, removeHome } from './settings.js?mxj=0.9.0';
+import { characterView } from './character.js?mxj=0.9.0';
+import { listConnectionProfiles, fetchManualModels, fetchProfileModels, testConnection } from './api.js?mxj=0.9.0';
+import { ICON } from './ui-common.js?mxj=0.9.0';
 
 let app = null;
 let state = null;
@@ -20,7 +20,7 @@ export function setup(a) {
     return {
         views: { settings: viewSettings },
         titles: {
-            settings: () => ['梦想家设置', '生成 · 读取 · 回家'],
+            settings: () => ['梦想家设置', '外观 · 生成 · 读取 · 回家'],
         },
         // 每次进设置页，模型列表先收着
         enter: {
@@ -183,7 +183,7 @@ function saveField(field, value) {
     }
 }
 
-// 设置按原来从上到下的顺序分组：小屋浮窗（直接是开关）→ 文字生成 → 生成时读取 → 他什么时候回家 → 生图连接 → 更新日志 → 拆掉这个家。
+// 设置按原来从上到下的顺序分组：小屋浮窗（直接是开关）→ 配色与美化 → 文字生成 → 生成时读取 → 他什么时候回家 → 生图连接 → 更新日志 → 拆掉这个家。
 // 每组默认收起，收起时下面一行小字写着现在的设置；点标题展开。
 function viewSettings(char, home) {
     const s = getSettings();
@@ -191,6 +191,7 @@ function viewSettings(char, home) {
       <section class="mxj-card mxj-group-flat">
         ${switchRow('floatingLauncher', '小屋浮窗', '在酒馆页面上放一个可拖动的入口，轻点打开。魔法棒入口一直都在。', s.floatingLauncher)}
       </section>
+      ${group('skin', '配色与美化', app.renderView('skinsum', char, home), () => app.renderView('skinbody', char, home))}
       ${group('text', '文字生成', textSummary(s), textBody)}
       ${group('read', '生成时读取', readSummary(s), readBody)}
       ${group('visit', '他什么时候回家', visitSummary(s), visitBody)}

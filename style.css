@@ -956,3 +956,99 @@
 #mxj-root[data-theme="pixel"] { --mxj-green: #46672F; }
 #mxj-root[data-theme="pixel"] .mxj-tile-name { color: var(--mxj-ink); }
 #mxj-root[data-theme="scrapbook"] .mxj-danger { color: #9A3B24; border-color: #9A3B24; }
+
+/* 配色：选了配色（[data-palette]）时，各风格写死的颜色都换成配色里的颜色；形状（边框样式、圆角）不变 · 0.9.0 */
+#mxj-root[data-palette][data-theme] .mxj-window { background: var(--mxj-ground); border-color: var(--mxj-line); }
+#mxj-root[data-palette][data-theme] .mxj-main { background: var(--mxj-ground); background-image: none; }
+#mxj-root[data-palette][data-theme] .mxj-top { background: var(--mxj-top); background-image: none; border-color: var(--mxj-line); color: var(--mxj-top-ink); }
+#mxj-root[data-palette][data-theme] .mxj-title,
+#mxj-root[data-palette][data-theme] .mxj-subtitle { color: var(--mxj-top-ink); }
+#mxj-root[data-palette][data-theme] .mxj-subtitle { opacity: .85; }
+#mxj-root[data-palette][data-theme] .mxj-icon-btn { background: var(--mxj-paper); color: var(--mxj-ink); border-color: var(--mxj-line); }
+#mxj-root[data-palette][data-theme] .mxj-card,
+#mxj-root[data-palette][data-theme] .mxj-strip,
+#mxj-root[data-palette][data-theme] .mxj-notebook,
+#mxj-root[data-palette][data-theme] .mxj-diary-page,
+#mxj-root[data-palette][data-theme] .mxj-diary-book,
+#mxj-root[data-palette][data-theme] .mxj-model-list,
+#mxj-root[data-palette][data-theme] .mxj-drawer-card { background: var(--mxj-paper); background-image: none; color: var(--mxj-ink); border-color: var(--mxj-line); }
+#mxj-root[data-palette][data-theme] .mxj-card::before { background: var(--mxj-green-soft); }
+#mxj-root[data-palette][data-theme] .mxj-card h3,
+#mxj-root[data-palette][data-theme] .mxj-group-title { color: var(--mxj-ink); }
+#mxj-root[data-palette][data-theme] .mxj-btn,
+#mxj-root[data-palette][data-theme] .mxj-chip,
+#mxj-root[data-palette][data-theme] .mxj-tile,
+#mxj-root[data-palette][data-theme] .mxj-tool,
+#mxj-root[data-palette][data-theme] .mxj-tab,
+#mxj-root[data-palette][data-theme] .mxj-size,
+#mxj-root[data-palette][data-theme] .mxj-place,
+#mxj-root[data-palette][data-theme] .mxj-entry,
+#mxj-root[data-palette][data-theme] .mxj-stepper-box,
+#mxj-root[data-palette][data-theme] .mxj-seg button,
+#mxj-root[data-palette][data-theme] .mxj-task,
+#mxj-root[data-palette][data-theme] .mxj-pick { background: var(--mxj-white); color: var(--mxj-ink); border-color: var(--mxj-line); }
+#mxj-root[data-palette][data-theme] .mxj-btn.is-primary,
+#mxj-root[data-palette][data-theme] .mxj-chip.is-on,
+#mxj-root[data-palette][data-theme] .mxj-seg button.is-on,
+#mxj-root[data-palette][data-theme] .mxj-entry[aria-current="page"],
+#mxj-root[data-palette][data-theme] .mxj-place.is-on,
+#mxj-root[data-palette][data-theme] .mxj-size.is-on { background: var(--mxj-green); color: var(--mxj-accent-ink); border-color: var(--mxj-green); }
+#mxj-root[data-palette][data-theme] .mxj-pick.is-on,
+#mxj-root[data-palette][data-theme] .mxj-tab.is-on { background: var(--mxj-green-soft); color: var(--mxj-ink); border-color: var(--mxj-green); }
+#mxj-root[data-palette][data-theme] .mxj-chip.is-on.is-red,
+#mxj-root[data-palette][data-theme] .mxj-btn.is-red { background: var(--mxj-red); border-color: var(--mxj-red); color: var(--mxj-red-ink); }
+#mxj-root[data-palette][data-theme] .mxj-task.is-done { background: var(--mxj-green-soft); color: var(--mxj-muted); border-color: transparent; }
+#mxj-root[data-palette][data-theme] .mxj-input { background: var(--mxj-white); color: var(--mxj-ink); border-color: var(--mxj-line); }
+#mxj-root[data-palette][data-theme] .mxj-input::placeholder { color: var(--mxj-muted); }
+#mxj-root[data-palette][data-theme] .mxj-main > .mxj-muted,
+#mxj-root[data-palette][data-theme] .mxj-main > p { color: var(--mxj-muted-on-bg); }
+#mxj-root[data-palette][data-theme] .mxj-entries { background: transparent; border-color: var(--mxj-line); }
+#mxj-root[data-palette][data-theme] .mxj-deco-bar { background: var(--mxj-ground); }
+#mxj-root[data-palette][data-theme] .mxj-deco-bar .mxj-muted { color: var(--mxj-muted-on-bg); }
+#mxj-root[data-palette][data-theme] .mxj-group-sum,
+#mxj-root[data-palette][data-theme] .mxj-muted { color: var(--mxj-muted); }
+#mxj-root[data-palette][data-theme] .mxj-link-btn { color: var(--mxj-link); }
+#mxj-root[data-palette][data-theme] .mxj-danger { color: var(--mxj-red); border-color: var(--mxj-red); }
+#mxj-root[data-palette][data-theme] .mxj-danger-btn { color: var(--mxj-red); }
+#mxj-root[data-palette][data-theme] .mxj-warn { color: var(--mxj-red); }
+#mxj-root[data-palette][data-theme] .mxj-status.is-toast { background: var(--mxj-green); color: var(--mxj-accent-ink); }
+#mxj-root[data-palette][data-theme] .mxj-scene { border-color: var(--mxj-line); outline-color: var(--mxj-line); box-shadow: none; }
+#mxj-root[data-palette][data-theme] .mxj-turn { background: var(--mxj-surface); color: var(--mxj-ink); }
+#mxj-root[data-palette][data-theme] .mxj-turn.is-user { background: var(--mxj-green-soft); color: var(--mxj-ink); }
+#mxj-root[data-palette][data-theme] .mxj-tag { background: var(--mxj-green-soft); color: var(--mxj-ink); }
+#mxj-root[data-palette][data-theme] .mxj-tag.is-stage { background: var(--mxj-green); color: var(--mxj-accent-ink); }
+#mxj-root[data-palette][data-theme] input[type="checkbox"].mxj-switch:checked { background: var(--mxj-green); border-color: var(--mxj-green); }
+
+/* 设置里的配色选择 */
+#mxj-root .mxj-skin-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+#mxj-root .mxj-skin-pick { display: flex; flex-direction: column; align-items: stretch; gap: 6px; min-height: 64px; padding: 8px; border: 1px solid var(--mxj-line); border-radius: 12px; background: var(--mxj-white); color: var(--mxj-ink); font-size: 12px; cursor: pointer; font-family: inherit; }
+#mxj-root .mxj-skin-pick.is-on { border: 3px solid var(--mxj-green); padding: 6px; font-weight: 700; }
+#mxj-root .mxj-skin-dots { display: flex; height: 22px; border-radius: 6px; overflow: hidden; box-shadow: inset 0 0 0 1px #00000018; }
+#mxj-root .mxj-skin-dots i { flex: 1; }
+#mxj-root .mxj-skin-colors { display: flex; flex-direction: column; gap: 6px; }
+#mxj-root .mxj-skin-color { display: flex; align-items: center; gap: 10px; min-height: 44px; }
+#mxj-root .mxj-skin-color span { flex: 1; font-size: 14px; }
+#mxj-root .mxj-skin-color code { font-size: 12px; color: var(--mxj-muted); }
+#mxj-root .mxj-skin-color input[type="color"] { width: 52px; height: 36px; padding: 0; border: 1px solid var(--mxj-line); border-radius: 8px; background: none; cursor: pointer; }
+#mxj-root .mxj-skin-css { font-family: ui-monospace, "SFMono-Regular", Consolas, monospace; font-size: 12px; line-height: 1.5; min-height: 120px; }
+#mxj-root .mxj-skin-file { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+#mxj-root .mxj-guide-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+#mxj-root .mxj-guide-table td { padding: 6px 4px; border-bottom: 1px solid var(--mxj-line-soft); vertical-align: top; }
+#mxj-root .mxj-guide-table code { font-size: 12px; word-break: break-all; }
+#mxj-root .mxj-guide-swatch { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: middle; box-shadow: inset 0 0 0 1px #00000022; margin-right: 4px; }
+#mxj-root .mxj-guide-code { margin: 0; padding: 10px; border-radius: 10px; background: var(--mxj-white); border: 1px solid var(--mxj-line-soft); font-size: 11px; line-height: 1.5; white-space: pre-wrap; word-break: break-all; max-height: 300px; overflow: auto; }
+#mxj-root .mxj-row.is-wrap { flex-wrap: wrap; }
+#mxj-root .mxj-group-body h4 { margin: 8px 0 0; font-size: 14px; font-weight: 700; color: var(--mxj-ink); }
+/* 配色是深色时：纸条、房间上的提示这些自带浅色底的部件，字保持深色 */
+#mxj-root[data-palette][data-theme] .mxj-scene-hint { background: var(--mxj-paper); color: var(--mxj-ink); }
+#mxj-root[data-palette][data-theme] .mxj-note,
+#mxj-root[data-palette][data-theme] .mxj-note-text { color: #2B2418; }
+#mxj-root[data-palette][data-theme] .mxj-note .mxj-link-btn,
+#mxj-root[data-palette][data-theme] .mxj-note .mxj-muted { color: #4A3B22; }
+#mxj-root[data-palette][data-theme] .mxj-note-kind { background: #A1402F; color: #FFFFFF; }
+#mxj-root[data-palette][data-theme] .mxj-note.is-mine .mxj-note-kind { background: #3B5566; }
+#mxj-root[data-palette][data-theme] .mxj-proposal p,
+#mxj-root[data-palette][data-theme] .mxj-room-list li { color: var(--mxj-ink); }
+#mxj-root[data-palette][data-theme] .mxj-stepper-box button { color: var(--mxj-link); }
+#mxj-root[data-palette][data-theme] .mxj-badge-btn,
+#mxj-root[data-palette][data-theme] .mxj-badge { background: var(--mxj-red); color: var(--mxj-red-ink); }

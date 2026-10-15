@@ -1,21 +1,23 @@
 // 梦想家 · 界面核心：面板的打开关闭、确认框、渲染、忙碌条、事件分发
 // 每一页的内容和按钮在 view-*.js 里；这里只负责把它们接起来。
-import { refreshFloating } from './floating.js?mxj=0.8.2';
-import { homeTheme } from './theme.js?mxj=0.8.2';
-import { esc, LOG_PREFIX } from './util.js?mxj=0.8.2';
-import { currentCharacter, characterKey, getHome } from './settings.js?mxj=0.8.2';
-import { characterView } from './character.js?mxj=0.8.2';
-import { shouldAutoVisit } from './home-visit.js?mxj=0.8.2';
-import { createDecorator } from './decorate.js?mxj=0.8.2';
-import { ICON, viewNoChar } from './ui-common.js?mxj=0.8.2';
-import { setup as setupHome } from './view-home.js?mxj=0.8.2';
-import { setup as setupBuild } from './view-build.js?mxj=0.8.2';
-import { setup as setupNotes } from './view-notes.js?mxj=0.8.2';
-import { setup as setupDiary } from './view-diary.js?mxj=0.8.2';
-import { setup as setupLook } from './view-look.js?mxj=0.8.2';
-import { setup as setupArt } from './view-art.js?mxj=0.8.2';
-import { setup as setupSettings } from './view-settings.js?mxj=0.8.2';
-import { setup as setupPets } from './view-pets.js?mxj=0.8.2';
+import { refreshFloating } from './floating.js?mxj=0.9.0';
+import { homeTheme } from './theme.js?mxj=0.9.0';
+import { esc, LOG_PREFIX } from './util.js?mxj=0.9.0';
+import { currentCharacter, characterKey, getHome, getSettings } from './settings.js?mxj=0.9.0';
+import { characterView } from './character.js?mxj=0.9.0';
+import { shouldAutoVisit } from './home-visit.js?mxj=0.9.0';
+import { createDecorator } from './decorate.js?mxj=0.9.0';
+import { ICON, viewNoChar } from './ui-common.js?mxj=0.9.0';
+import { setup as setupHome } from './view-home.js?mxj=0.9.0';
+import { setup as setupBuild } from './view-build.js?mxj=0.9.0';
+import { setup as setupNotes } from './view-notes.js?mxj=0.9.0';
+import { setup as setupDiary } from './view-diary.js?mxj=0.9.0';
+import { setup as setupLook } from './view-look.js?mxj=0.9.0';
+import { setup as setupArt } from './view-art.js?mxj=0.9.0';
+import { setup as setupSettings } from './view-settings.js?mxj=0.9.0';
+import { setup as setupPets } from './view-pets.js?mxj=0.9.0';
+import { setup as setupSkin } from './view-skin.js?mxj=0.9.0';
+import { effectiveSkin, applySkin } from './skin.js?mxj=0.9.0';
 
 const ROOT_ID = 'mxj-root';
 
@@ -70,7 +72,7 @@ const app = {
 
 const homePage = setupHome(app);
 const settingsPage = setupSettings(app);
-const pages = [homePage, setupBuild(app), setupNotes(app), setupDiary(app), setupLook(app), setupArt(app), setupPets(app), settingsPage];
+const pages = [homePage, setupBuild(app), setupNotes(app), setupDiary(app), setupLook(app), setupArt(app), setupPets(app), setupSkin(app), settingsPage];
 
 function merge(key, base = {}) {
     const out = { ...base };
@@ -296,6 +298,9 @@ function render() {
     const char = currentCharacter();
     const home = char ? getHome(char) : null;
     root.dataset.theme = home?.house ? homeTheme(home) : state.draft.theme;
+    // 给做美化的人用：现在在哪一页；再套上配色和导入的美化
+    root.dataset.view = state.view;
+    applySkin(root, effectiveSkin(getSettings(), home));
     const back = root.querySelector('.mxj-back');
     const isTop = state.view === 'home' || state.view === 'nochar' || (state.view === 'build' && !home?.house);
     back.innerHTML = isTop ? ICON.close : ICON.back;

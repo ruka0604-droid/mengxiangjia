@@ -71,7 +71,9 @@ EOF
 | `src/home-pets.js` | 小家伙们的存档操作和生成：领养、种植、照顾、抱到别的房间；植物长到新阶段时 `writeStageNote`；照描述画一只 `drawCustomPet`；回家那次调用里的 `petVisitBlock` / `applyPetVisit` |
 | `src/pet-art.js` | 猫、狗（坐 / 睡两种姿势）和六种植物各阶段的 SVG，装扮按 `animalAnchors` 的位置画在身上；`petsLayer` 画进房间最前面一层，摸它时冒爱心 |
 | `src/view-pets.js` | 小家伙们、领养、种一盆、成长记录、换装扮（画的宠物可以拖「脖子」「头顶」圆点）五页，和小屋里点中它时的卡片（登记成 `petcard` 视图，首页用 `app.renderView('petcard', …)` 拿） |
-| `src/view-notes.js`、`src/view-diary.js`、`src/view-look.js`、`src/view-art.js`、`src/view-settings.js` | 小纸条、交换日记、他的样子、画出我们的家、设置。设置按原来从上到下的顺序分组折叠（`state.settingsOpen`）：小屋浮窗（开关）/ 文字生成 / 生成时读取 / 他什么时候回家 / 生图连接 / 更新日志，最下面拆家；收起时显示一行摘要。别处要直达并展开某组，按钮写 `data-act="settings" data-group="image"`。设置里的文字框不要在 change 时整页重画（手机上会把刚点中的下一个输入框弄丢），Key、模型这类边打边存 |
+| `src/view-notes.js`、`src/view-diary.js`、`src/view-look.js`、`src/view-art.js`、`src/view-settings.js` | 小纸条、交换日记、他的样子、画出我们的家、设置。设置按原来从上到下的顺序分组折叠（`state.settingsOpen`）：小屋浮窗（开关）/ 配色与美化 / 文字生成 / 生成时读取 / 他什么时候回家 / 生图连接 / 更新日志，最下面拆家；收起时显示一行摘要。别处要直达并展开某组，按钮写 `data-act="settings" data-group="image"`。设置里的文字框不要在 change 时整页重画（手机上会把刚点中的下一个输入框弄丢），Key、模型这类边打边存 |
+| `src/skin.js` | 配色与美化：8 套预设（`SKIN_PRESETS`）、由 8 个主要颜色算出全部颜色（`skinVars`，按钮字、顶栏字自动挑看得清的）、看不清的提醒（`skinProblems`）、美化 CSS 加前缀（`scopeCss`：每条规则前面加 `#mxj-root#mxj-root`，压过插件自带样式；去掉 @import）、`applySkin` 写进面板里的 `<style id="mxj-user-skin">`、导入导出、模板 |
+| `src/view-skin.js` | 设置里「配色与美化」那一组（登记成 `skinbody` / `skinsum` 视图，设置页用 `app.renderView` 拿）和「美化接口说明」页 `skin-guide` |
 | `src/util.js` | 小工具，含宽松 JSON 解析 `parseJsonLoose` |
 | `style.css` | 全部样式限定在 `#mxj-root` 内；已经抵消了酒馆全局对 button/input/select/checkbox 的主题样式 |
 
@@ -90,12 +92,14 @@ EOF
 - `look`：像素小人形象 `{hairStyle, hair, skin, eyes, outfit, accent, pants, shoes, accessory}`；没有时按名字给默认样子
 - `artByTheme`：中途换风格时收起来的图，`{风格: {portrait, rooms:{房间id:{art,useArt}}, furniture:{家具id:art}}}`。当前风格的图仍在 `home.art`、`room.art`、`furniture.art` 上；换风格只能用 `home-house.js` 的 `switchTheme()`，不要直接改 `home.theme`，否则新旧画风的图会混在一起
 - `diary`：`{mode:'visit'|'daily'|'manual', entries[{author, date, weather, text, quote, stamp}], readAt}`。mode 为 visit 时，他的日记并在回家那次调用里一起生成
+- `skin`：这个家单独的配色与美化 `{own, palette:''|预设id|'custom', colors{bg,top,card,ink,muted,accent,line,red}, css, name}`，`own` 为真才用；全局那套在 `extension_settings.mengxiangjia.skin`（同样格式，没有 own）。注意 `home.appearance` 是他的外貌文字，不是界面外观
 - `pets`：`{animals[], plants[], events[], eventsSeenAt}`。动物 `{id, kind:'cat'|'dog'|'custom', coat, name, gender, room, placedAt, adoptedAt, fedAt, waterAt, walkedAt, walkedBy, mischief{text,at,room}, mischiefLog}`，`gear[{type, color, item, by:'char'|'user', at}]`（每个位置一件，种类见 `pets-data.js` 的 `GEAR`），custom 另有 `habit, species, desc, art{path}, anchors{ar, neck{x,y,w}, head{x,y}, manual}`（脖子和头顶在图上的位置，0–1）；植物 `{id, kind, name, room, x, plantedAt, waters[], fertAt, points, stage, stageAt{}, stageNotes{阶段:纸条id}, troubleSeen}`；`events` 是照顾记录，回家时给模型看。`presence.petting{pet, until}`：叫他来摸摸它之后的半小时，他在那只旁边（下次回家清掉）。和小家伙有关的纸条带 `about{id, name, type, tag, stage?}`。动物在哪个房间、什么姿势都按时间算出来，不存
 
 房间 `arranged` 为真后完全按用户摆的位置画；否则自动排开防重叠。
 
 ### 界面要点
 
+- **美化接口是公开的**：`skin.js` 的 `SKIN_VIEWS`、`SKIN_PARTS` 和模板里列出的类名、CSS 变量、`data-view` 页名，别人做的美化会依赖它们，不要随便改名；真要改，在 README 里写清楚。配色用 `#mxj-root[data-palette][data-theme] …` 覆盖各风格写死的颜色（style.css 末尾那一段），新加的部件如果写死了颜色，也要在那里补一条，并跑一遍对比度检查（8 套配色 × 3 种风格每页文字对比度 ≥ 4.5）。
 - 面板是挂在 `body` 上的 `<dialog>` + `showModal()`，尺寸跟 `visualViewport`（CSS 变量 `--mxj-vw/vh/vl/vt`），TT 下加 `data-tt-mobile-surface`。
 - 事件用 `data-act` 委托；输入用 `data-field`。改界面后调用 `render()`，需要保留滚动位置时先设 `state.keepScroll = true`。
 - 生成一律走 `run(提示文字, signal => …)`，自带忙碌条和「取消」。

@@ -1,21 +1,21 @@
 // 梦想家 · 界面 · 小家伙们（照顾、领养、种一盆、成长记录）和小屋里点中它时的那张卡
-import { esc, formatTime, daysSince } from './util.js?mxj=0.8.2';
-import { characterView } from './character.js?mxj=0.8.2';
-import { getHome, setHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.8.2';
-import { isAway, respond } from './home-visit.js?mxj=0.8.2';
-import { imageConfigProblems } from './imageApi.js?mxj=0.8.2';
+import { esc, formatTime, daysSince } from './util.js?mxj=0.9.0';
+import { characterView } from './character.js?mxj=0.9.0';
+import { getHome, setHome, getSettings, currentCharacter, characterKey } from './settings.js?mxj=0.9.0';
+import { isAway, respond } from './home-visit.js?mxj=0.9.0';
+import { imageConfigProblems } from './imageApi.js?mxj=0.9.0';
 import {
     getPets, findPet, adoptAnimal, plantNew, careAnimal, moveAnimal, removePet,
     waterPlant, fertilizePlant, writeStageNote, drawCustomPet, drawPetImage,
     dressAnimal, undressAnimal, setPetAnchors, detectPetAnchors,
-} from './home-pets.js?mxj=0.8.2';
+} from './home-pets.js?mxj=0.9.0';
 import {
     MAX_ANIMALS, MAX_PLANTS, CAT_COATS, DOG_COATS, PLANT_KINDS, STAGE_POINTS,
     animalStatus, animalRoom, animalPose, animalLabel, genderLabel,
     plantStatus, nextStageHint, todayTasks, dayKey,
     GEAR, GEAR_COLORS, animalAnchors, pettingNow,
-} from './pets-data.js?mxj=0.8.2';
-import { animalIcon, animalShape, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.8.2';
+} from './pets-data.js?mxj=0.9.0';
+import { animalIcon, animalShape, plantIcon, plantStageIcon } from './pet-art.js?mxj=0.9.0';
 
 let app = null;
 let state = null;

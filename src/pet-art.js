@@ -1,7 +1,7 @@
 // 梦想家 · 小家伙们的画法：猫、狗、六种植物（每个生长阶段一个样子），房间里的那一层
-import { esc, shade, luminance } from './util.js?mxj=0.8.2';
-import { SCENE_W, SCENE_H } from './furniture.js?mxj=0.8.2';
-import { coatOf, habitOf, animalStatus, animalRoom, animalPose, animalLabel, plantStatus, PLANT_KINDS, GEAR, animalAnchors } from './pets-data.js?mxj=0.8.2';
+import { esc, shade, luminance } from './util.js?mxj=0.9.0';
+import { SCENE_W, SCENE_H } from './furniture.js?mxj=0.9.0';
+import { coatOf, habitOf, animalStatus, animalRoom, animalPose, animalLabel, plantStatus, PLANT_KINDS, GEAR, animalAnchors } from './pets-data.js?mxj=0.9.0';
 
 const PINK = '#E8A0A8';
 

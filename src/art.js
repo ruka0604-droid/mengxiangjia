@@ -1,13 +1,13 @@
 // 梦想家素材流程：固定主题 → 英文画面描述 → 生图预览 → 使用者确认保存。
-import { generate } from './api.js?mxj=0.8.2';
-import { gatherContext } from './character.js?mxj=0.8.2';
-import { homeTheme } from './theme.js?mxj=0.8.2';
-import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.8.2';
-import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.8.2';
-import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.8.2';
-import { artShape, CATALOG } from './furniture.js?mxj=0.8.2';
-import { cleanBackground } from './cutout.js?mxj=0.8.2';
-import { parseJsonLoose } from './util.js?mxj=0.8.2';
+import { generate } from './api.js?mxj=0.9.0';
+import { gatherContext } from './character.js?mxj=0.9.0';
+import { homeTheme } from './theme.js?mxj=0.9.0';
+import { getHome, getSettings, setHome, characterKey } from './settings.js?mxj=0.9.0';
+import { requestImage, saveImage, blobDataUrl } from './imageApi.js?mxj=0.9.0';
+import { portraitAppearanceFromModel, cleanAppearanceText } from './appearance-filter.js?mxj=0.9.0';
+import { artShape, CATALOG } from './furniture.js?mxj=0.9.0';
+import { cleanBackground } from './cutout.js?mxj=0.9.0';
+import { parseJsonLoose } from './util.js?mxj=0.9.0';
 
 export const ART_STYLES = {
     scrapbook: 'warm watercolor and colored pencil illustration, vintage botanical scrapbook, textured handmade paper feeling, delicate ink outlines, cream and olive and honey brown palette, cozy lived-in atmosphere',
