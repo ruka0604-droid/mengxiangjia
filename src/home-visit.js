@@ -1,14 +1,14 @@
 // 梦想家 · 他回家、回应他、什么时候回家
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.9.0';
-import { generate } from './api.js?mxj=0.9.0';
-import { gatherContext, contextBlock } from './character.js?mxj=0.9.0';
-import { getHome, setHome, getSettings } from './settings.js?mxj=0.9.0';
-import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.9.0';
-import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.9.0';
-import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.9.0';
-import { pendingChanges } from './home-decor.js?mxj=0.9.0';
-import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.9.0';
-import { petVisitBlock, applyPetVisit, applyGear, petsBrief, PET_VISIT_FORMAT, PET_GEAR_FORMAT, PET_GEAR_RULE } from './home-pets.js?mxj=0.9.0';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.9.1';
+import { generate } from './api.js?mxj=0.9.1';
+import { gatherContext, contextBlock } from './character.js?mxj=0.9.1';
+import { getHome, setHome, getSettings } from './settings.js?mxj=0.9.1';
+import { VISIT_SYSTEM, RESPOND_SYSTEM } from './home-prompts.js?mxj=0.9.1';
+import { liveHome, houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.9.1';
+import { NOTE_KINDS, NOTE_PLACES } from './home-notes.js?mxj=0.9.1';
+import { pendingChanges } from './home-decor.js?mxj=0.9.1';
+import { getDiary, charTurn, applyCharDiary, diaryContext, DIARY_FORMAT } from './home-diary.js?mxj=0.9.1';
+import { petVisitBlock, applyPetVisit, applyGear, petsBrief, PET_VISIT_FORMAT, PET_GEAR_FORMAT, PET_GEAR_RULE } from './home-pets.js?mxj=0.9.1';
 
 // ---------------- 他回家 ----------------
 

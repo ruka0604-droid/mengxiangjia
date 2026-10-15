@@ -1,8 +1,8 @@
 // 梦想家 · 房子大小、房间种类、加减房间和搬家
-import { uid, now } from './util.js?mxj=0.9.0';
-import { getHome, setHome } from './settings.js?mxj=0.9.0';
-import { CATALOG } from './furniture.js?mxj=0.9.0';
-import { recordChanges } from './home-decor.js?mxj=0.9.0';
+import { uid, now } from './util.js?mxj=0.9.1';
+import { getHome, setHome } from './settings.js?mxj=0.9.1';
+import { CATALOG } from './furniture.js?mxj=0.9.1';
+import { recordChanges } from './home-decor.js?mxj=0.9.1';
 
 export const HOUSE_SIZES = [
     { id: 'studio', name: '一间小屋', sub: '开间', rooms: '1 个房间', maxRooms: 4 },

@@ -1,11 +1,11 @@
 // 梦想家 · 交换日记
-import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.9.0';
-import { generate } from './api.js?mxj=0.9.0';
-import { gatherContext, contextBlock } from './character.js?mxj=0.9.0';
-import { getHome, setHome } from './settings.js?mxj=0.9.0';
-import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.9.0';
-import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.9.0';
-import { petsBrief, applyGear, withPetGear, PET_GEAR_RULE } from './home-pets.js?mxj=0.9.0';
+import { uid, now, parseJsonLoose, asText, clip } from './util.js?mxj=0.9.1';
+import { generate } from './api.js?mxj=0.9.1';
+import { gatherContext, contextBlock } from './character.js?mxj=0.9.1';
+import { getHome, setHome } from './settings.js?mxj=0.9.1';
+import { DIARY_SYSTEM } from './home-prompts.js?mxj=0.9.1';
+import { houseSummary, recentLog, notesHistory, nowLine } from './home-shared.js?mxj=0.9.1';
+import { petsBrief, applyGear, withPetGear, PET_GEAR_RULE } from './home-pets.js?mxj=0.9.1';
 
 export const WEATHERS = ['晴', '多云', '阴', '小雨', '大雨', '雪', '雾', '起风'];
 export const DIARY_MODES = [

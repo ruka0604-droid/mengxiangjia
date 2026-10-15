@@ -105,7 +105,7 @@ export function normalizeSkin(raw) {
     return {
         palette: s.palette === 'custom' || SKIN_PRESETS[s.palette] ? s.palette : '',
         colors: s.colors ? cleanColors(s.colors) : null,
-        css: typeof s.css === 'string' ? s.css.slice(0, 200000) : '',
+        css: typeof s.css === 'string' ? s.css.slice(0, 400000) : '',
         name: typeof s.name === 'string' ? s.name.slice(0, 40) : '',
     };
 }
@@ -128,8 +128,27 @@ function scopeSelector(sel) {
     const s = sel.trim();
     if (!s) return s;
     if (/^#mxj-root(?![\w-])/.test(s)) return s.replace(/^#mxj-root/, '#mxj-root#mxj-root');
-    if (/^(:root|html|body)(?![\w-])/.test(s)) return s.replace(/^(:root|html|body)/, '#mxj-root#mxj-root');
+    // 开头连着写的 :root / html / body（比如 html body .x）都换成面板本身
+    const lead = s.match(/^(?:(?::root|html|body)(?![\w-])\s*>?\s*)+/);
+    if (lead) {
+        const rest = s.slice(lead[0].length).trim();
+        return rest ? `#mxj-root#mxj-root ${rest}` : '#mxj-root#mxj-root';
+    }
     return `#mxj-root#mxj-root ${s}`;
+}
+
+// 按逗号切选择器，但括号里的逗号（:is(.a, .b)、:not(.a, .b)）不切
+function splitSelectors(prelude) {
+    const out = [];
+    let depth = 0, start = 0;
+    for (let k = 0; k < prelude.length; k++) {
+        const ch = prelude[k];
+        if (ch === '(' || ch === '[') depth++;
+        else if (ch === ')' || ch === ']') depth = Math.max(0, depth - 1);
+        else if (ch === ',' && !depth) { out.push(prelude.slice(start, k)); start = k + 1; }
+    }
+    out.push(prelude.slice(start));
+    return out;
 }
 
 function scopeBlock(text) {
@@ -138,7 +157,9 @@ function scopeBlock(text) {
     while (i < text.length) {
         const open = text.indexOf('{', i);
         if (open < 0) break;
-        const prelude = text.slice(i, open).trim();
+        // 前面如果有 @layer x; 这类不带大括号的写法、或者多余的分号，只取最后一个分号后面的那段当选择器
+        let prelude = text.slice(i, open);
+        prelude = prelude.slice(prelude.lastIndexOf(';') + 1).trim();
         let depth = 1;
         let j = open + 1;
         while (j < text.length && depth) {
@@ -149,7 +170,7 @@ function scopeBlock(text) {
         const body = text.slice(open + 1, depth ? text.length : j - 1);
         if (/^@(media|supports|container|layer)\b/i.test(prelude)) out += `${prelude}{${scopeBlock(body)}}\n`;
         else if (/^@/.test(prelude)) out += `${prelude}{${body}}\n`;
-        else if (prelude) out += `${prelude.split(',').map(scopeSelector).join(', ')}{${body}}\n`;
+        else if (prelude) out += `${splitSelectors(prelude).map(scopeSelector).join(', ')}{${body}}\n`;
         i = j;
     }
     return out;
@@ -173,7 +194,7 @@ let lastKey = '';
 export function applySkin(root, skin) {
     if (!root) return;
     const colors = skinColors(skin);
-    const key = JSON.stringify([colors, skin?.css || '']);
+    const key = JSON.stringify([skin?.palette || '', colors, skin?.css || '']);
     let style = root.querySelector('#mxj-user-skin');
     if (key === lastKey && style) return;
     lastKey = key;

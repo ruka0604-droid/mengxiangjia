@@ -1,12 +1,12 @@
 // 梦想家 · 界面 · 配色与美化（设置里的一组）和「美化接口说明」页
-import { esc } from './util.js?mxj=0.9.0';
-import { getSettings, updateSettings, getHome, setHome, currentCharacter } from './settings.js?mxj=0.9.0';
-import { characterView } from './character.js?mxj=0.9.0';
-import { homeTheme } from './theme.js?mxj=0.9.0';
+import { esc } from './util.js?mxj=0.9.1';
+import { getSettings, updateSettings, getHome, setHome, currentCharacter } from './settings.js?mxj=0.9.1';
+import { characterView } from './character.js?mxj=0.9.1';
+import { homeTheme } from './theme.js?mxj=0.9.1';
 import {
     SKIN_KEYS, SKIN_PRESETS, SKIN_VIEWS, SKIN_PARTS, SKIN_TEMPLATE,
     normalizeSkin, effectiveSkin, skinColors, skinProblems, applySkin, exportSkin, parseSkinFile,
-} from './skin.js?mxj=0.9.0';
+} from './skin.js?mxj=0.9.1';
 
 let app = null;
 let state = null;
@@ -41,11 +41,12 @@ export function setup(a) {
                 const text = exportSkin(skin);
                 // 文件名用英文：有的浏览器碰到中文文件名会存成「download」
                 const name = `mengxiangjia-skin-${new Date().toISOString().slice(0, 10)}.json`;
-                const done = [];
-                try { download(name, text, 'application/json'); done.push('已下载'); } catch { /* 有的环境不能下载 */ }
+                try { download(name, text, 'application/json'); } catch { /* 有的环境不能下载 */ }
+                // 手机上（尤其 TT）常常下载不了也复制不了：复制失败就把内容摆出来，长按全选复制
                 copy(text).then(ok => {
-                    if (ok) done.push('也复制到剪贴板了');
-                    flash(done.length ? `${done.join('，')}。把这个文件发给别人，对方在这里导入就是同一套` : '这个环境下载不了，也复制不了，可以换个浏览器再试');
+                    state.skinExport = ok ? '' : text;
+                    if (!ok) { state.keepScroll = true; render(); }
+                    flash(ok ? '导出好了：存成了文件，也复制到了剪贴板。手机上没看到文件的话，直接把剪贴板里的内容发给别人，对方粘贴到「美化 CSS」框里就行' : '这里复制不了，导出的内容摆在下面了，长按全选复制');
                 });
             },
             'skin-clear-css'(el, char) {
@@ -70,7 +71,11 @@ export function setup(a) {
                 setColor(char, el.dataset.key, value);
                 refresh(char);
             },
-            skinCss(value) { writeSkin(currentCharacter(), { css: value }); },
+            skinCss(value) {
+                const char = currentCharacter();
+                if (applyPasted(char, value)) return;
+                writeSkin(char, { css: value });
+            },
             skinName(value) { writeSkin(currentCharacter(), { name: value }); },
             skinFile(value, el) {
                 const file = el?.files?.[0];
@@ -95,7 +100,11 @@ export function setup(a) {
         inputs: {
             // 拖取色器时边拖边看效果，不重画页面
             skinColor(el) { setColor(currentCharacter(), el.dataset.key, el.value); const code = el.parentElement?.querySelector('code'); if (code) code.textContent = el.value.toUpperCase(); },
-            skinCss(el) { writeSkin(currentCharacter(), { css: el.value }); },
+            skinCss(el) {
+                const char = currentCharacter();
+                if (applyPasted(char, el.value)) return;
+                writeSkin(char, { css: el.value });
+            },
             skinName(el) { writeSkin(currentCharacter(), { name: el.value }); },
         },
     };
@@ -116,6 +125,22 @@ function writeSkin(char, patch) {
         updateSettings({ skin: { ...normalizeSkin(getSettings().skin), ...patch } });
     }
     applySkin(app.root(), currentSkin(char));
+}
+
+// 粘贴进来的是导出的那种 .json（配色 + 美化）：拆开套用，而不是当成 CSS
+function applyPasted(char, text) {
+    if (!/^\s*\{\s*"mengxiangjiaSkin"/.test(String(text || ''))) return false;
+    let ok = true;
+    try { JSON.parse(text); } catch { ok = false; }
+    if (!ok) return false;
+    const parsed = parseSkinFile(text, '');
+    const patch = { css: parsed.css, name: parsed.name };
+    if (parsed.colors) Object.assign(patch, { palette: 'custom', colors: parsed.colors });
+    else if (parsed.palette) Object.assign(patch, { palette: parsed.palette, colors: { ...SKIN_PRESETS[parsed.palette].colors } });
+    writeSkin(char, patch);
+    refresh(char);
+    flash(`套用了「${parsed.name}」`);
+    return true;
 }
 
 function setColor(char, key, value) {
@@ -141,8 +166,23 @@ function download(name, text, type) {
     setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
+// 复制：先用剪贴板接口；http 地址或 TT 里不能用时，退回老办法
 async function copy(text) {
-    try { await navigator.clipboard.writeText(text); return true; } catch { return false; }
+    try { await navigator.clipboard.writeText(text); return true; } catch { /* 换老办法 */ }
+    try {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.setAttribute('readonly', '');
+        ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0';
+        (app.root() || document.body).append(ta);
+        ta.select();
+        ta.setSelectionRange(0, text.length);
+        const ok = document.execCommand('copy');
+        ta.remove();
+        return ok;
+    } catch {
+        return false;
+    }
 }
 
 // 「跟随风格」那一格画风格自己的颜色（页面底、顶栏、卡片、主色、文字）
@@ -195,6 +235,7 @@ function skinBody(char, home) {
         <button type="button" class="mxj-btn mxj-grow" data-act="skin-export">导出这一套</button>
         <button type="button" class="mxj-btn mxj-grow" data-act="skin-clear-css">清空美化</button>
       </div>
+      ${state.skinExport ? `<label class="mxj-field"><span>导出的内容（长按全选复制，发给别人）</span><textarea class="mxj-input mxj-skin-css" rows="6" readonly>${esc(state.skinExport)}</textarea></label>` : ''}
       <button type="button" class="mxj-link-btn" data-act="go" data-view="skin-guide">想自己做美化？看美化接口说明</button>`;
 }
 
